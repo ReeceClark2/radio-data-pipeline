@@ -103,7 +103,7 @@ class Sort:
 
         if self.file.header["OBSMODE"] == "onoff":
             for ind, point in enumerate(section):
-                target = b'onoff:off'
+                target = 'onoff:off'
                 if target in point["OBSMODE"]: 
                     offstart = ind
                     indicies = np.array([data_start_ind, offstart-1, offstart, post_cal_start_ind])   
@@ -309,7 +309,7 @@ class Sort:
                 if feednum not in feeds:
                     continue
 
-                times = [datetime.fromisoformat(t) for t in c["DATE-OBS"]]
+                times = c['DATE-OBS']
                 t0 = datetime.fromisoformat(self.file.header["DATE"])
                 time_rel = [(t - t0).total_seconds() for t in times]
 

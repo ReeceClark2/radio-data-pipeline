@@ -1,4 +1,5 @@
 from astropy.io import fits
+from astropy.table import Table
 from file_exception import MyException
 import numpy as np
 import matplotlib
@@ -38,7 +39,7 @@ class Mike:
         try:
             with fits.open(file_path) as hdul:
                 self.header = hdul[0].header
-                self.data = hdul[1].data
+                self.data = Table(hdul[1].data)
         except Exception as e:
             raise MyException(f"Error reading FITS file: {e}")
         

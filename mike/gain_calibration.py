@@ -121,7 +121,7 @@ class Gain_Cal:
 
         freq = self.average(data, axis=1)
 
-        times = [datetime.fromisoformat(t) for t in data["DATE-OBS"]]
+        times = data["DATE-OBS"]
         t0 = datetime.fromisoformat(self.file.header["DATE"])
         time_rel = [(t - t0).total_seconds() for t in times]
 
