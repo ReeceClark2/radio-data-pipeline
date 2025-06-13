@@ -61,6 +61,7 @@ class Weather:
     
 
     def compute_gaseous_attenuation(self, f, P, T, rh, site_elevation, theta_rad):
+        f /= 1000 # Divide by 1000 to convert to GHz
         # Compute water vapor density (assumed to be in g/m^3)
         rho = self.water_vapor_density(P, T, rh)
 
@@ -86,26 +87,26 @@ class Weather:
 
     def weather_correction(self):
         for ind1, i in enumerate(self.file.data):
-            subset_data = self.file.data[ind1]
+            subset_indicies = self.file.data_indicies[ind1]
+            subset_data = i[subset_indicies[0]:subset_indicies[-1]]
 
-            P = subset_data['PRESSURE'] * 1.33322 
-            T = subset_data['TAMBIENT'] + 273.15
-            rh = subset_data['HUMIDITY']   
-            theta_rad = np.radians(subset_data['ELEVATIO'])
-            
-            f = np.linspace(self.file.freqs[ind1][0], self.file.freqs[ind1][1], len(subset_data['DATA'][0]))
+            P = np.median(subset_data['PRESSURE'] * 1.33322) 
+            T = np.median(subset_data['TAMBIENT'] + 273.15)
+            rh = np.median(subset_data['HUMIDITY'])   
+            theta_rad = np.median(np.radians(subset_data['ELEVATIO']))
+
+            f = np.linspace(6000, 8000, len(subset_data['DATA'][0]))
             site_elevation = self.file.header['SITEELEV'] / 1000
 
-            for ind2, j in enumerate(subset_data):
-                A_gas = self.compute_gaseous_attenuation(f, P[ind2], T[ind2], rh[ind2], site_elevation, theta_rad[ind2])
-
+            A_gas = self.compute_gaseous_attenuation(f, P, T, rh, site_elevation, theta_rad)
+            transmission = 10**(-A_gas / 10)
+            print(min(transmission), max(transmission))
+            for j in subset_data['DATA']:
                 # self.compute_rain_attenuation()
                 # self.compute_scintillation_attenuation()
                 # self.compute_cloud_attenuation()
 
-                transmission = 1 - 10**(-A_gas / 10)
-
-                subset_data['DATA'][ind2] = subset_data['DATA'][ind2] * transmission
+                j *= (1/ transmission)
         
         return
 
@@ -124,6 +125,6 @@ if __name__ == "__main__":
     s.sort()
 
     w = Weather(file)
-    print(file.data[0]['DATA'][0])
+    print(file.data[0]['DATA'][0][25])
     w.weather_correction()
-    print(file.data[0]['DATA'][0])
+    print(file.data[0]['DATA'][0][25])

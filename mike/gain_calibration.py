@@ -1,5 +1,4 @@
-from datetime import datetime
-
+from astropy.time import Time
 import numpy as np
 from scipy.stats import linregress
 import matplotlib
@@ -119,11 +118,13 @@ class Gain_Cal:
         2D array: times and frequencies
         '''
 
+
         freq = self.average(data, axis=1)
 
-        times = data["DATE-OBS"]
-        t0 = datetime.fromisoformat(self.file.header["DATE"])
-        time_rel = [(t - t0).total_seconds() for t in times]
+        times = Time(data["DATE-OBS"], format='isot')
+        t0 = Time(self.file.header["DATE"], format='isot')
+        
+        time_rel = (times - t0).sec
 
         return [time_rel, freq]
     

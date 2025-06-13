@@ -1,5 +1,6 @@
 from collections import defaultdict
 from datetime import datetime
+from astropy.time import Time
 from tabnanny import check
 from scipy.ndimage import label, median_filter
 import numpy as np
@@ -165,12 +166,12 @@ class Sort:
                             # Otherwise skip it
                             continue
 
-        feeds = len(np.unique([d['IFNUM'] for d in self.file.data]))
+        channels = len(np.unique([d['PLNUM'] for d in self.file.data]))
         for c in center:
             start_f = c - (band / 2)
             stop_f = c + (band / 2)
             
-            for _ in range(feeds):
+            for _ in range(channels):
                 freqs.append(np.array([start_f, stop_f]))
         self.file.freqs = freqs
 
@@ -309,9 +310,9 @@ class Sort:
                 if feednum not in feeds:
                     continue
 
-                times = c['DATE-OBS']
-                t0 = datetime.fromisoformat(self.file.header["DATE"])
-                time_rel = [(t - t0).total_seconds() for t in times]
+                times = Time(c["DATE-OBS"], format="isot")
+                t0 = Time(self.file.header["DATE"], format="isot")
+                time_rel = (times - t0).sec  # Time delta in seconds
 
                 new_table= []
                 if type == "keep":
@@ -349,4 +350,3 @@ if __name__ == "__main__":
     s.sort()
     s.section_debug()
 
-    s.user_cuts

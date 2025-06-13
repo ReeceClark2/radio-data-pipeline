@@ -2,7 +2,7 @@ import numpy as np
 from scipy.stats import linregress
 from datetime import datetime
 import rcr
-
+from astropy.time import Time
 from file_exception import MyException
 from file_init import Mike
 from val import Val
@@ -102,9 +102,11 @@ class Cal:
 
         freq = self.average(data, axis=1)
 
-        times = [datetime.fromisoformat(t) for t in data["DATE-OBS"]]
-        t0 = datetime.fromisoformat(self.file.header["DATE"])
-        time_rel = [(t - t0).total_seconds() for t in times]
+        times = Time(data["DATE-OBS"], format='isot')
+        t0 = Time(self.file.header["DATE"], format='isot')
+
+        # Time deltas in seconds
+        time_rel = (times - t0).sec
 
         result = (np.array(time_rel), np.array(freq))
 

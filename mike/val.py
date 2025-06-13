@@ -2,6 +2,7 @@ import numpy as np
 from astropy.io import fits
 from astropy.table import Table
 from astropy.table import Column
+from astropy.time import Time
 from datetime import datetime
 
 from file_exception import MyException
@@ -230,27 +231,37 @@ class Val:
 
     def convert_to_datetime(self, column):
         '''
-        Convert the dates and times to datetime objects from the date time library
+        Convert the dates and times to astropy time ojects from the astropy time library
+        Ensure other time-step columns are floats
         '''
-        
-        # Check if the column name contains any of the keywords
-        if any(keyword in column.upper() for keyword in ["DATE", "TIME", "DURATION", "EXPOSURE", "MJD", "UTC", "UTSECS"]) or column.upper() == "LST":
+        #convert date and time to astropy time objects, or fall back to float or string
+        if any(keyword in column.upper() for keyword in ["DATE", "TIME"]) or column.upper() == "LST":
                 try:
-                    # Attempt to convert to datetime object
-                    self.file.data[column] = np.vectorize(lambda x: datetime.strptime(x, "%Y-%m-%dT%H:%M:%S.%f"))(self.file.data[column])
-                    self.file.data[column] = self.file.data[column].astype(type(self.file.data[column][0]))
+                    # Try converting with astropy Time
+                    self.data[column] = Time(self.data[column])
                 except (ValueError, TypeError):
                     try:
-                        # If conversion fails, convert to seconds (float)
-                        self.file.data[column] = Column(self.file.data[column].astype(float), dtype='f8')
-
+                        # Fallback: convert to float (e.g., durations)
+                        self.data[column] = Column(self.data[column].astype(float), dtype='f8')
                     except ValueError:
                         try:
-                            # If conversion fails, make it a string
-                            self.file.data[column] = Column(self.file.data[column].astype(str), dtype='U')
+                            # Fallback: treat as string
+                            self.data[column] = Column(self.data[column].astype(str), dtype='U')
                         except Exception:
-                            raise MyException(f"⚠️ Failed to convert value '{self.file.data[column]}' in column '{column}' to datetime or seconds.")
-                
+                            raise MyException(f"⚠️ Failed to convert value '{self.data[column]}' in column '{column}' to astropy Time, float, or string.")
+                        
+        # Convert other time step columns to floats, fallback to string
+        if any(keyword in column.upper() for keyword in [ "DURATION", "EXPOSURE", "MJD", "UTC", "UTSECS"]) or column.upper() == "LST":
+                try:
+                    # Convert to float (e.g., durations)
+                    self.data[column] = Column(self.data[column].astype(float), dtype='f8')
+                except ValueError:
+                    try:
+                        # Fallback: treat as string
+                        self.data[column] = Column(self.data[column].astype(str), dtype='U')
+                    except Exception:
+                        raise MyException(f"⚠️ Failed to convert value '{self.data[column]}' in column '{column}' to astropy Time, float, or string.")
+                        
         return
 
 
@@ -258,7 +269,9 @@ class Val:
         '''
         Check if certain columns have negative values and remove them.
         '''
-
+        if isinstance(self.data[column], Time):
+            return
+        
         if self.data[column].dtype.kind in {'U', 'S', 'O'}:
             # Vectorized replacement of 'nan' or 'NaN' (case-insensitive) with np.nan in string columns
             def replace_nan(val):

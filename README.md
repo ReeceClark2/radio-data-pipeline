@@ -1,4 +1,4 @@
-# Radio Processing Pipeline
+# Radio Data Pipeline
 This repository provides Skynet 2 with the ability to process radio FITS files. The FITS files are wrapped in a file class with several fields to control the calibration of the file. This pipeline can take in four different file types: tracking, on/off, map, and calibration. All files are treated with validation, channel sorting, weather correction, gain calibration, and flux calibration.
 
 ## Tracking
