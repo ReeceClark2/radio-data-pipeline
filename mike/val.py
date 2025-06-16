@@ -238,7 +238,17 @@ class Val:
         if any(keyword in column.upper() for keyword in ["DATE", "TIME"]) or column.upper() == "LST":
                 try:
                     # Try converting with astropy Time
+                    type = self.file.data[column].dtype.type
+                    if type is str or type is np.str_:
+                        for i, value in enumerate(self.file.data[column]):
+                            # Replace underscores with dashes and the first colon with 'T' for ISO format
+                            new_value = value.replace('_', '-')
+                            if 'T' not in new_value:
+                                new_value = new_value.replace(':', 'T', 1)
+                            self.file.data[column][i] = new_value
                     self.file.data[column] = Time(self.file.data[column])
+                    # Sort the table by this time column in descending order
+
                 except (ValueError, TypeError):
                     try:
                         # Fallback: convert to float (e.g., durations)
@@ -294,7 +304,7 @@ if __name__ == "__main__":
     Test function to implement validation.
     '''
 
-    file = Mike("EpicONoFFHiRes/0136550.fits")
+    file = Mike("TrackingLowRes/0132783.fits")
     v = Val(file)
     v.validate_primary_header()
     v.validate_data()
