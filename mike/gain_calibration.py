@@ -93,7 +93,6 @@ class Gain_Cal:
             m = 0
             b = y[0]
 
-<<<<<<< HEAD
         guess = [m, b]
         model = rcr.FunctionalForm(self.linear,
             x,
@@ -122,9 +121,6 @@ class Gain_Cal:
 
         return best_fit_parameters, uncertainties
 
-=======
-            return (b, m), (0, 0)
->>>>>>> 7aa268a121bcb7dff9b4634b8fa2f49441c3a599
 
     def average(self, data, axis):
         '''
@@ -196,7 +192,6 @@ class Gain_Cal:
 
             return delta, time, delta_uncertainty, cal_on_array, cal_off_array, cal_on_params, cal_off_params, cal_on_uncertainties, cal_off_uncertainties
         
-<<<<<<< HEAD
         def plot_delta_fit(cal_on_array, cal_off_array, cal_on_params, cal_on_unc, cal_off_params, cal_off_unc, save_path=None):
             
             time = (np.mean(cal_on_array[0]) + np.mean(cal_off_array[0])) / 2
@@ -255,8 +250,6 @@ class Gain_Cal:
                 os.makedirs(full_dir, exist_ok=True)
                 plt.savefig(save_path)
                         
-=======
->>>>>>> 7aa268a121bcb7dff9b4634b8fa2f49441c3a599
         for ind, i in enumerate(self.file.data):
             subset_data = self.file.data[ind]
             subset_indices = self.file.data_indicies[ind]
@@ -265,15 +258,9 @@ class Gain_Cal:
                     (np.arange(len(subset_data)) < subset_indices[0]) &
                     (subset_data["SWPVALID"] == 0)
                 ]
-<<<<<<< HEAD
                 delta1, t1, sigma1, calon1, caloff1, calonpara1, caloffpara1, calonunc1, caloffunc1 = get_delta(pre_cal)
                 self.file.gain_start.append([delta1, t1, sigma1, calon1, caloff1])
                 #plot_delta_fit(calon1, caloff1, calonpara1, calonunc1, caloffpara1, caloffunc1, save_path = os.path.abspath(f"./plots/delta_plot__precal{ind}.png"))
-=======
-
-                delta1, t1 = get_delta(pre_cal)
-                self.file.gain_start.append([delta1, t1])
->>>>>>> 7aa268a121bcb7dff9b4634b8fa2f49441c3a599
             except:
                 self.file.gain_start.append(None)
 
@@ -336,16 +323,7 @@ class Gain_Cal:
                 print(delta2, sigma2)
                 #print(f"RCR uncertainties = {on_uncertainties, off_uncertainties}")
                 # For the time array in the data find the calibrated height for each intensity
-<<<<<<< HEAD
                 if z_value < 0.6745:
-=======
-                for idx, i in enumerate(data[0]):
-                    delta = delta1 + (delta2 - delta1) * (data[0][idx] - time1) / (time2 - time1)
-
-                    # Add each calibration height to the calib_height list
-                    data[1][idx] = (data[1][idx] / delta)
-                calib_height_data = data
->>>>>>> 7aa268a121bcb7dff9b4634b8fa2f49441c3a599
 
                     for ind, i in enumerate(data[0]):
                         delta = (delta1 + delta2) / 2
@@ -401,14 +379,9 @@ class Gain_Cal:
                 continue
 
             # Add the calibrated height data to continuum
-<<<<<<< HEAD
         
             self.file.continuum.append(calib_height_data)
         
-=======
-
-            self.file.continuum[ind] = (calib_height_data)
->>>>>>> 7aa268a121bcb7dff9b4634b8fa2f49441c3a599
             # Check if all calibrations are done
             if calibrations == datas:
                 self.file.gain_calibrated = True
@@ -428,11 +401,7 @@ if __name__ == "__main__":
     keep_times = [[8,12], [1404, 1410], [1412, 1420]]  # Specify the indices you want to keep
     feed= [0]  # Specify the feeds you want to keep
 
-<<<<<<< HEAD
     file = Mike("C://Users//leesnow//Downloads//0136376.fits")
-=======
-    file = Mike("EpicONoFFHiRes/0135839.fits")
->>>>>>> 7aa268a121bcb7dff9b4634b8fa2f49441c3a599
     data = Gain_Cal(file)
 
     v = Val(file)
@@ -442,18 +411,12 @@ if __name__ == "__main__":
     s = Sort(file)
     s.sort()
 
-<<<<<<< HEAD
     c = Cal(file)
     #c.compute_gain_deltas()
 
     g = Gain_Cal(file)
     g.gain_cal()
     
-=======
-
-    g = Gain_Cal(file)
-    g.gain_cal()
->>>>>>> 7aa268a121bcb7dff9b4634b8fa2f49441c3a599
 
 
 
