@@ -31,6 +31,8 @@ class Sort:
         ifnums = np.unique(self.file.data["IFNUM"])
         plnums = np.unique(self.file.data["PLNUM"])
 
+        self.file.continuum.extend([None for i in range(len(ifnums) * len(plnums))])
+
         data = []
         labels = []
         for i in ifnums:
@@ -242,103 +244,6 @@ class Sort:
             print(data_start_ind, post_cal_start_ind)
             print(len(pre_cal),len(data),len(post_cal))
             print (data_start_ind, post_cal_start_ind)
-
-
-    def back_to_original_data(self, original_data):
-        '''
-        Restore the original data from the modified data.
-        '''
-        for i in range(len(self.file.data)):
-            self.file.data[i] = original_data[i]
-
-
-    def user_cuts(self, indices, axis, type, feeds=[]):
-        '''
-        Allow the user to cut out sections of the data.
-
-        Params: indices - the indices to cut
-                cut_type - the type of cut (spectrum or continuum)
-                feeds - the feeds to apply the cuts to
-        returns: original data before cuts so that it can be restored later
-        '''
-        original_data = []
-        for c in self.file.data:
-            original_data.append(c.copy())
-
-        if feeds == []:
-            feeds = np.arange(len(np.unique(d['IFNUM'] for d in self.file.data)))
-        # Ensure indices are in pairs
-
-        if axis == "spectrum":
-            for i, c in enumerate(self.file.data):
-                feednum = np.unique(c['IFNUM'])
-                if feednum.size != 1:
-                    raise MyException("Data is not split by feed. Please run split_slp_feed() first.")
-                feednum = feednum[0]
-                if feednum not in feeds:
-                    continue
-
-                data_column = c['DATA']
-                length = data_column.shape[1]
-                freqs = np.linspace(self.file.freqs[feednum][0], self.file.freqs[feednum][1], length)
-
-                freq_mask = np.zeros_like(freqs, dtype=bool)
-                for fmin, fmax in indices:
-                    if type == "keep":
-                        freq_mask |= (freqs >= fmin) & (freqs <= fmax)
-                    elif type == "cut":
-                        freq_mask |= (freqs >= fmin) & (freqs <= fmax)
-                if type == "cut":
-                    freq_mask = ~freq_mask
-
-                # Apply mask to each row in the DATA column
-                sliced_data = np.array([row[freq_mask] for row in data_column])
-                selected_freqs = freqs[freq_mask]
-
-                # Update the DATA column with the sliced data
-                c.replace_column('DATA', sliced_data)
-                self.file.spectrum[i][0] = selected_freqs
-
-
-        if axis == "continuum":
-            for i, c in enumerate(self.file.data):
-                feednum = np.unique(c['IFNUM'])
-                if feednum.size != 1:
-                    raise MyException("Data is not split by feed. Please run split_slp_feed() first.")
-                feednum = feednum[0]
-                
-                if feednum not in feeds:
-                    continue
-
-                times = Time(c["DATE-OBS"], format="isot")
-                t0 = Time(self.file.header["DATE"], format="isot")
-                time_rel = (times - t0).sec  # Time delta in seconds
-
-                new_table= []
-                if type == "keep":
-                    for tmin, tmax in indices:
-                        for j in range(len(time_rel)):
-                            if time_rel[j] > tmin and time_rel[j] < tmax:
-                                new_table.append(c[j])
-                elif type == "cut":
-                    # Start with all rows, then filter out those within any (tmin, tmax) interval
-                    mask = np.ones(len(time_rel), dtype=bool)
-                    for tmin, tmax in indices:
-                        for j in range(len(time_rel)):
-                            if tmin < time_rel[j] < tmax:
-                                mask[j] = False
-                    new_table = [c[j] for j in range(len(time_rel)) if mask[j]]
-                    # Convert new_table to an astropy Table only if it's not empty
-
-                if new_table:
-                    self.file.data[i] = Table(rows=new_table, names=c.colnames)
-                else:
-                    # If no rows matched, create an empty table with the same columns
-                    self.file.data[i] = Table(names=c.colnames)
-
-        # Return the original data for restoration later
-        return original_data
-
 
 if __name__ == "__main__":
     file = Mike("C:/Users/starb/Downloads/0136870.fits")
