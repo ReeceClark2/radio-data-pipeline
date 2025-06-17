@@ -311,17 +311,14 @@ class Gain_Cal:
                 time2 = self.file.gain_end[ind][1]
                 sigma1 = self.file.gain_start[ind][2]
                 sigma2 = self.file.gain_end[ind][2]
-                on_uncertainties = self.file.gain_end[ind][5]
-                off_uncertainties = self.file.gain_end[ind][6]
+           
                 #Get z value
                 z_value = abs(delta1 - delta2) / np.sqrt(sigma1**2 + sigma2**2)
+                print(z_value)
                 # Get an array of the continuum data
                 data = self.file.data[ind]
                 data = self.sdfits_to_array(data)
-                print(z_value)
-                print(delta1, sigma1)
-                print(delta2, sigma2)
-                #print(f"RCR uncertainties = {on_uncertainties, off_uncertainties}")
+
                 # For the time array in the data find the calibrated height for each intensity
                 if z_value < 0.6745:
 
