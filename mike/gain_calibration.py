@@ -1,12 +1,11 @@
-from datetime import datetime
-
+from astropy.time import Time
 import numpy as np
 from scipy.stats import linregress
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import rcr
-
+import os
 from file_exception import MyException
 from file_init import Mike
 from child_init import Sully
@@ -64,6 +63,32 @@ class Gain_Cal:
             result = linregress(x, y)
             m = result.slope
             b = result.intercept
+            guess = [m, b]
+            model = rcr.FunctionalForm(self.linear,
+                x,
+                y,
+                [self.d_linear_1, self.d_linear_2],
+                guess
+            )
+            
+            r = rcr.RCR(rcr.SS_MEDIAN_DL) 
+            r.setParametricModel(model)
+            r.performBulkRejection(y)
+
+            indices = r.result.indices
+
+            x = np.array([x[i] for i in indices])
+            y = np.array([y[i] for i in indices])
+
+            best_fit_parameters = model.result.parameters
+            
+            sigma = (1 / (len(x) - 2)) * np.sum((y - best_fit_parameters[1] * x - best_fit_parameters[0]) ** 2)
+            m_sd = np.sqrt(sigma / np.sum((x - np.mean(x)) ** 2))
+            b_sd = np.sqrt(sigma * ((1 / len(x)) + ((np.mean(x) ** 2) / np.sum((x - np.mean(x)) ** 2))))
+            uncertainties = (b_sd, m_sd)
+
+            return best_fit_parameters, uncertainties
+
         else:
             m = 0
             b = y[0]
@@ -81,6 +106,8 @@ class Gain_Cal:
         r.performBulkRejection(y)
 
         indices = r.result.indices
+        rejecteddata = r.result.rejectedY
+        nonrejecteddata = r.result.cleanY
 
         x = np.array([x[i] for i in indices])
         y = np.array([y[i] for i in indices])
@@ -119,11 +146,13 @@ class Gain_Cal:
         2D array: times and frequencies
         '''
 
+
         freq = self.average(data, axis=1)
 
-        times = [datetime.fromisoformat(t) for t in data["DATE-OBS"]]
-        t0 = datetime.fromisoformat(self.file.header["DATE"])
-        time_rel = [(t - t0).total_seconds() for t in times]
+        times = Time(data["DATE-OBS"], format='isot')
+        t0 = Time(self.file.header["DATE"], format='isot')
+        
+        time_rel = (times - t0).sec
 
         return [time_rel, freq]
     
@@ -136,7 +165,6 @@ class Gain_Cal:
         file: Mike class file
         ind: index of channel being processed
         '''
-
         def get_delta(cal):
             cal_on_array = self.sdfits_to_array(cal[cal["CALSTATE"] == 1])
             cal_on_params, cal_on_uncertainties = self.rcr(cal_on_array)
@@ -147,29 +175,92 @@ class Gain_Cal:
                 return None
             
             cal_off_params, cal_off_uncertainties = self.rcr(cal_off_array)
-
+            
             time = (np.mean(cal_on_array[0]) + np.mean(cal_off_array[0])) / 2
             if time < (cal_on_array[0][0] + cal_off_array[0][-1]) / 2:
                 time = (cal_on_array[0][0] + cal_off_array[0][-1]) / 2
             elif time > (cal_on_array[0][-1] + cal_off_array[0][0]) / 2:
                 time = (cal_on_array[0][-1] + cal_off_array[0][0]) / 2
 
-            delta = (cal_on_params[1] * time + cal_on_params[0]) - (cal_off_params[1] * time + cal_off_params[0])
+            t_centered = time - np.mean(time)
 
-            return delta, time
+            delta = (cal_on_params[1] * t_centered + cal_on_params[0]) - (cal_off_params[1] * t_centered + cal_off_params[0])
+            max_delta = ((cal_on_params[1] + cal_on_uncertainties[1]) * t_centered + (cal_on_params[0] + cal_on_uncertainties[0])) - ((cal_off_params[1] - cal_off_uncertainties[1]) * t_centered + (cal_off_params[0] - cal_off_uncertainties[0]))
+            min_delta = ((cal_on_params[1] - cal_on_uncertainties[1]) * t_centered + (cal_on_params[0] - cal_on_uncertainties[0])) - ((cal_off_params[1] + cal_off_uncertainties[1]) * t_centered + (cal_off_params[0] + cal_off_uncertainties[0]))
+            delta_uncertainty = (abs(delta - max_delta) + abs(delta - min_delta)) / 2
+            #print(delta, delta_uncertainty)
+
+            return delta, time, delta_uncertainty, cal_on_array, cal_off_array, cal_on_params, cal_off_params, cal_on_uncertainties, cal_off_uncertainties
         
-    
+        def plot_delta_fit(cal_on_array, cal_off_array, cal_on_params, cal_on_unc, cal_off_params, cal_off_unc, save_path=None):
+            
+            time = (np.mean(cal_on_array[0]) + np.mean(cal_off_array[0])) / 2
+            if time < (cal_on_array[0][0] + cal_off_array[0][-1]) / 2:
+                time = (cal_on_array[0][0] + cal_off_array[0][-1]) / 2
+            elif time > (cal_on_array[0][-1] + cal_off_array[0][0]) / 2:
+                time = (cal_on_array[0][-1] + cal_off_array[0][0]) / 2
+
+            t_centered = time - np.mean(time)
+            
+            # Extract time and signal
+            t_on, y_on = cal_on_array
+            t_off, y_off = cal_off_array
+            t_on_center = t_on - np.mean(t_on)
+            t_off_center = t_off - np.mean(t_off)
+           
+            #Create a time range covering both
+            t_min = min(t_on_center.min(), t_off_center.min())
+            t_max = max(t_on_center.max(), t_off_center.max())
+            t_range = np.linspace(t_min, t_max, 500)
+            t_range_on = np.linspace(t_on_center.min(), t_on_center.max(), 300)
+            t_range_off = np.linspace(t_off_center.min(), t_off_center.max(), 300) 
+            
+
+        
+          
+            # Max and min delta lines
+
+            # Fit lines over restricted ranges
+            fit_on = cal_on_params[1] * t_range + cal_on_params[0]
+            fit_on_max = (cal_on_params[1] + cal_on_unc[1]) * t_range + (cal_on_params[0] + cal_on_unc[0])
+            fit_on_min = (cal_on_params[1] - cal_on_unc[1]) * t_range + (cal_on_params[0] - cal_on_unc[0])
+
+            fit_off = cal_off_params[1] * t_range + cal_off_params[0]
+            fit_off_max = (cal_off_params[1] + cal_off_unc[1]) * t_range + (cal_off_params[0] + cal_off_unc[0])
+            fit_off_min = (cal_off_params[1] - cal_off_unc[1]) * t_range + (cal_off_params[0] - cal_off_unc[0])
+
+            # Plot
+            fig, ax = plt.subplots(figsize=(10, 6))
+            #ax.scatter(t_on, y_on, color='blue', label='CAL ON')
+            #ax.scatter(t_off, y_off, color='red', label='CAL OFF')
+            ax.plot(t_range, fit_on, color='blue', label='Fit ON')
+            ax.plot(t_range, fit_off, color='red', label='Fit OFF')
+            ax.plot(t_range, fit_on_max , color='purple', linestyle='--', label='Fit On Max')
+            ax.plot(t_range, fit_on_min , color='purple', linestyle='--', label='Fit On Min')
+            ax.plot(t_range, fit_off_max , color='pink', linestyle='--', label='Fit Off Max')
+            ax.plot(t_range, fit_off_min , color='pink', linestyle='--', label='Fit Off Min')
+            ax.set_xlabel('Time')
+            ax.set_ylabel('Signal')
+            ax.set_title('CAL ON/OFF with Fit Lines and Delta Bounds')
+            ax.legend()
+            ax.grid(True)
+           
+            if save_path:
+                full_dir = os.path.dirname(os.path.abspath(save_path))
+                os.makedirs(full_dir, exist_ok=True)
+                plt.savefig(save_path)
+                        
         for ind, i in enumerate(self.file.data):
             subset_data = self.file.data[ind]
             subset_indices = self.file.data_indicies[ind]
-
             try:
                 pre_cal = subset_data[
                     (np.arange(len(subset_data)) < subset_indices[0]) &
                     (subset_data["SWPVALID"] == 0)
                 ]
-                delta1, t1 = get_delta(pre_cal)
-                self.file.gain_start.append([delta1, t1])
+                delta1, t1, sigma1, calon1, caloff1, calonpara1, caloffpara1, calonunc1, caloffunc1 = get_delta(pre_cal)
+                self.file.gain_start.append([delta1, t1, sigma1, calon1, caloff1])
+                #plot_delta_fit(calon1, caloff1, calonpara1, calonunc1, caloffpara1, caloffunc1, save_path = os.path.abspath(f"./plots/delta_plot__precal{ind}.png"))
             except:
                 self.file.gain_start.append(None)
 
@@ -178,12 +269,14 @@ class Gain_Cal:
                     (np.arange(len(subset_data)) >= subset_indices[-1]) &
                     (subset_data["SWPVALID"] == 0)
                 ]
-                delta2, t2 = get_delta(post_cal)
-                self.file.gain_end.append([delta2, t2])
+                delta2, t2, sigma2, calon2, caloff2, calonpara2, caloffpara2, calonunc2, caloffunc2 = get_delta(post_cal)
+                self.file.gain_end.append([delta2, t2, sigma2, calon2, caloff2])
+                #plot_delta_fit(calon2, caloff2, calonpara2, calonunc2, caloffpara2, caloffunc2, save_path = os.path.abspath(f"./plots/delta_plot__postcal{ind}.png")
+
             except:
                 self.file.gain_end.append(None)
-    
-            
+
+
         return
 
 
@@ -216,19 +309,34 @@ class Gain_Cal:
                 delta2 = self.file.gain_end[ind][0]
                 time1 = self.file.gain_start[ind][1]
                 time2 = self.file.gain_end[ind][1]
-
+                sigma1 = self.file.gain_start[ind][2]
+                sigma2 = self.file.gain_end[ind][2]
+           
+                #Get z value
+                z_value = abs(delta1 - delta2) / np.sqrt(sigma1**2 + sigma2**2)
+                print(z_value)
                 # Get an array of the continuum data
                 data = self.file.data[ind]
                 data = self.sdfits_to_array(data)
 
                 # For the time array in the data find the calibrated height for each intensity
-                for ind, i in enumerate(data[0]):
-                    delta = delta1 + (delta2 - delta1) * (data[0][ind] - time1) / (time2 - time1)
-                    
-                    # Add each calibration height to the calib_height list
-                    data[1][ind] = (data[1][ind] / delta)
-                calib_height_data = data
+                if z_value < 0.6745:
 
+                    for ind, i in enumerate(data[0]):
+                        delta = (delta1 + delta2) / 2
+                        # Add each calibration height to the calib_height list
+                        data[1][ind] = (data[1][ind] / delta)
+
+                else:
+                    for ind, i in enumerate(data[0]):
+                        delta = delta1 + (delta2 - delta1) * (data[0][ind] - time1) / (time2 - time1)
+                        
+                        # Add each calibration height to the calib_height list
+                        data[1][ind] = (data[1][ind] / delta)
+                
+                calib_height_data = data
+                
+            
             # If gain_start is None and gain_end is not None, use gain_end for calibration
             elif self.file.gain_start[ind] is None and self.file.gain_end[ind] is not None:
                 calibrations += 1
@@ -264,12 +372,13 @@ class Gain_Cal:
                 # If both gain_start and gain_end are None, just copy the original data
                 # But gotta turn it into a list of time, intensity lists
 
-                self.file.continuum.append(calib_height_data)
+                self.file.continuum[ind] = (calib_height_data)
                 continue
 
             # Add the calibrated height data to continuum
         
             self.file.continuum.append(calib_height_data)
+        
             # Check if all calibrations are done
             if calibrations == datas:
                 self.file.gain_calibrated = True
@@ -280,7 +389,6 @@ class Gain_Cal:
     def gain_cal(self):
         self.compute_gain_deltas()
         self.cal_heights()
-
         return
 
 
@@ -290,7 +398,7 @@ if __name__ == "__main__":
     keep_times = [[8,12], [1404, 1410], [1412, 1420]]  # Specify the indices you want to keep
     feed= [0]  # Specify the feeds you want to keep
 
-    file = Mike("C:\\Users\\anshm\\Downloads\\0126929.fits")
+    file = Mike("C://Users//leesnow//Downloads//0136376.fits")
     data = Gain_Cal(file)
 
     v = Val(file)
@@ -301,12 +409,16 @@ if __name__ == "__main__":
     s.sort()
 
     c = Cal(file)
-    c.compute_gain_deltas()
+    #c.compute_gain_deltas()
 
     g = Gain_Cal(file)
-    g.gain_cal(file)
+    g.gain_cal()
+    
 
-    if keep_times != []:
+
+
+    plt.savefig("testplot")
+"""     if keep_times != []:
         child = Sully(file)
         sortchild = Sort(child)
         contChild = Gain_Cal(child)
@@ -315,4 +427,4 @@ if __name__ == "__main__":
         g.gain_cal(file, feed)
 
         print(file.data[0]["DATA"].shape)
-        print(child.data[0]["DATA"].shape)
+        print(child.data[0]["DATA"].shape) """

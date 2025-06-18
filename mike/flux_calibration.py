@@ -4,7 +4,6 @@ import matplotlib as plt
 from calendar import day_abbr
 from astropy.io import fits
 from astropy.table import Table
-from datetime import datetime
 import numpy as np
 from file_exception import MyException
 import warnings
@@ -16,7 +15,7 @@ from cal import Cal
 from val import Val
 from sort import Sort
 from gain_calibration import Gain_Cal
-
+from astropy.time import Time
 
 class Flux_Cal:
     def __init__(self, file, calfile):
@@ -105,11 +104,13 @@ class Flux_Cal:
 
         freq = self.average(data, axis=1)
 
-        times = [datetime.fromisoformat(t) for t in data["DATE-OBS"]]
-        t0 = datetime.fromisoformat(self.file.header["DATE"])
-        time_rel = [(t - t0).total_seconds() for t in times]
+        times = Time(data["DATE-OBS"], format='isot')
+        t0 = Time(self.file.header["DATE"], format='isot')
+        
+        time_rel = (times - t0).sec
 
         return [time_rel, freq]
+    
     
 
     def on_off_background_subtract(self, onoff_file): 
@@ -221,7 +222,7 @@ class Flux_Cal:
             calint = calints[i]
             
             # Get flux of calibration source in janskys
-            date = datetime.fromisoformat(self.calfile.header["DATE-OBS"])
+            date = Time(self.calfile.header["DATE-OBS"], format='isot')
             calintj = self.radio_calibrate(1355, 1435, date, self.calfile.header["object"].upper())["flux"] 
 
             # Conversion factor

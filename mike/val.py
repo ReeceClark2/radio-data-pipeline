@@ -133,17 +133,17 @@ class Val:
             3) convert datetime fields to datetime objects
         '''
 
-        try:
-            with fits.open(self.file.file_path) as hdul:
-                self.dataH = hdul[1].header
-                self.data = Table(hdul[1].data)
+        # try:
+        #     with fits.open(self.file.file_path) as hdul:
+        #         self.file.dataH = hdul[1].header
+        #         self.file.data = Table(hdul[1].data)
 
-        except Exception as e:
-            raise MyException(f"Error reading data from FITS file: {e}")
+        # except Exception as e:
+        #     raise MyException(f"Error reading data from FITS file: {e}")
 
         self.check_values()
 
-        for column in self.data.colnames:
+        for column in self.file.data.colnames:
             # Check that column conforms to correct type
             self.match_types(column)
 
@@ -160,14 +160,14 @@ class Val:
 
     def check_values(self):
         # Check if the data has bad values (NaN or negative)
-        Data = np.ma.array(self.data["DATA"])
+        Data = np.ma.array(self.file.data["DATA"])
 
         # Check each array in Data for NaN or 0s and create a masked array
         mask = np.isnan(Data) | (Data < 0)
         if np.any(mask):
             warnings.warn("🚫 Data contains negative or NaN values.", stacklevel=2)
 
-        self.data["DATA"] = np.ma.masked_array(Data, mask=mask)
+        self.file.data["DATA"] = np.ma.masked_array(Data, mask=mask)
 
         return
 
@@ -177,24 +177,24 @@ class Val:
         Make sure all the column types match the data types of the values.
         '''
 
-        column_data = self.data[column]
+        column_data = self.file.data[column]
 
         # Find how many unique types there are in the column
-        unique_types = set(type(value) for value in self.data[column])
+        unique_types = set(type(value) for value in self.file.data[column])
         
         # If there are more than one type of value in a column then correct it
         if len(unique_types) > 1:
             # Try to convert the values to the most common type
-            common_type = max(unique_types, key=lambda t: sum(isinstance(value, t) for value in self.data[column]))
-            for i, value in enumerate(self.data[column]):
+            common_type = max(unique_types, key=lambda t: sum(isinstance(value, t) for value in self.file.data[column]))
+            for i, value in enumerate(self.file.data[column]):
                 if not isinstance(value, common_type):
                     try:
-                        self.data[column][i] = common_type(value)
+                        self.file.data[column][i] = common_type(value)
                     except Exception:
                         # Mask the messed up values if conversion fails
-                        if not hasattr(self.data[column], 'mask'):
-                            self.data[column] = np.ma.array(self.data[column])
-                        self.data[column].mask[i] = True
+                        if not hasattr(self.file.data[column], 'mask'):
+                            self.file.data[column] = np.ma.array(self.file.data[column])
+                        self.file.data[column].mask[i] = True
             print(f"🚫 Column '{column}' contains mixed data types: {unique_types}.")
         else:
             # Otherwise convert the column to the common type
@@ -203,9 +203,9 @@ class Val:
                 if common_type is str:
                     # Automatic conversion to str doesn't work some of the time so we need to try UTF-8 first
                     if column_data.dtype.char == 'S':  # Check if it's a byte string
-                        self.data[column] = np.char.decode(self.data[column], encoding='utf-8', errors='replace')
+                        self.file.data[column] = np.char.decode(self.file.data[column], encoding='utf-8', errors='replace')
                     else:
-                        self.data[column] = np.array(self.data[column], dtype=str)
+                        self.file.data[column] = np.array(self.file.data[column], dtype=str)
 
                 # Make sure the arrays in the column are all floats
                 elif common_type is np.ndarray:
@@ -220,7 +220,7 @@ class Val:
 
                 # Otherwise just convert the column to the common type
                 else:
-                    self.data[column] = self.data[column].astype(common_type)
+                    self.file.data[column] = self.file.data[column].astype(common_type)
 
             except Exception as e:
                 # If that all fails, raise an error
@@ -238,29 +238,39 @@ class Val:
         if any(keyword in column.upper() for keyword in ["DATE", "TIME"]) or column.upper() == "LST":
                 try:
                     # Try converting with astropy Time
-                    self.data[column] = Time(self.data[column])
+                    type = self.file.data[column].dtype.type
+                    if type is str or type is np.str_:
+                        for i, value in enumerate(self.file.data[column]):
+                            # Replace underscores with dashes and the first colon with 'T' for ISO format
+                            new_value = value.replace('_', '-')
+                            if 'T' not in new_value:
+                                new_value = new_value.replace(':', 'T', 1)
+                            self.file.data[column][i] = new_value
+                    self.file.data[column] = Time(self.file.data[column])
+                    # Sort the table by this time column in descending order
+
                 except (ValueError, TypeError):
                     try:
                         # Fallback: convert to float (e.g., durations)
-                        self.data[column] = Column(self.data[column].astype(float), dtype='f8')
+                        self.file.data[column] = Column(self.file.data[column].astype(float), dtype='f8')
                     except ValueError:
                         try:
                             # Fallback: treat as string
-                            self.data[column] = Column(self.data[column].astype(str), dtype='U')
+                            self.file.data[column] = Column(self.file.data[column].astype(str), dtype='U')
                         except Exception:
-                            raise MyException(f"⚠️ Failed to convert value '{self.data[column]}' in column '{column}' to astropy Time, float, or string.")
+                            raise MyException(f"⚠️ Failed to convert value '{self.file.data[column]}' in column '{column}' to astropy Time, float, or string.")
                         
         # Convert other time step columns to floats, fallback to string
         if any(keyword in column.upper() for keyword in [ "DURATION", "EXPOSURE", "MJD", "UTC", "UTSECS"]) or column.upper() == "LST":
                 try:
                     # Convert to float (e.g., durations)
-                    self.data[column] = Column(self.data[column].astype(float), dtype='f8')
+                    self.file.data[column] = Column(self.file.data[column].astype(float), dtype='f8')
                 except ValueError:
                     try:
                         # Fallback: treat as string
-                        self.data[column] = Column(self.data[column].astype(str), dtype='U')
+                        self.file.data[column] = Column(self.file.data[column].astype(str), dtype='U')
                     except Exception:
-                        raise MyException(f"⚠️ Failed to convert value '{self.data[column]}' in column '{column}' to astropy Time, float, or string.")
+                        raise MyException(f"⚠️ Failed to convert value '{self.file.data[column]}' in column '{column}' to astropy Time, float, or string.")
                         
         return
 
@@ -269,22 +279,22 @@ class Val:
         '''
         Check if certain columns have negative values and remove them.
         '''
-        if isinstance(self.data[column], Time):
+        if isinstance(self.file.data[column], Time):
             return
         
-        if self.data[column].dtype.kind in {'U', 'S', 'O'}:
+        if self.file.data[column].dtype.kind in {'U', 'S', 'O'}:
             # Vectorized replacement of 'nan' or 'NaN' (case-insensitive) with np.nan in string columns
             def replace_nan(val):
                 if isinstance(val, str) and val.strip().lower() == 'nan':
                     return np.nan
                 return val
-            self.data[column] = np.vectorize(replace_nan)(self.data[column])
+            self.file.data[column] = np.vectorize(replace_nan)(self.file.data[column])
 
         if column.upper() in ["DURATION", "EXPOSURE", "TSYS", "TCAL", "LST", "ELEVATION", "TAMBIENT", "PRESSURE", "HUMIDITY", "RESTFREQ", "FREQRES", "TRGTLONG", "MJD", "UTSECS" ]:
-            if np.any(self.data[column] < 0):
-                num_negatives = np.sum(self.data[column] < 0)
-                print(f"Found {num_negatives} negative values in column '{column}'. out of {len(self.data[column])} total values.")
-                self.data = self.data[self.data[column] >= 0]
+            if np.any(self.file.data[column] < 0):
+                num_negatives = np.sum(self.file.data[column] < 0)
+                print(f"Found {num_negatives} negative values in column '{column}'. out of {len(self.file.data[column])} total values.")
+                self.file.data = self.file.data[self.file.data[column] >= 0]
         
         return
     
@@ -294,7 +304,7 @@ if __name__ == "__main__":
     Test function to implement validation.
     '''
 
-    file = Mike("C:/Users/starb/Downloads/0115701.fits")
+    file = Mike("TrackingLowRes/0132783.fits")
     v = Val(file)
     v.validate_primary_header()
     v.validate_data()
