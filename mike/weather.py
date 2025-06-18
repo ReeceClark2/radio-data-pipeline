@@ -95,7 +95,7 @@ class Weather:
             rh = np.median(subset_data['HUMIDITY'])   
             theta_rad = np.median(np.radians(subset_data['ELEVATIO']))
 
-            f = np.linspace(6000, 8000, len(subset_data['DATA'][0]))
+            f = np.linspace(self.file.freqs[ind1][0], self.file.freqs[ind1][1], len(subset_data['DATA'][0]))
             site_elevation = self.file.header['SITEELEV'] / 1000
 
             A_gas = self.compute_gaseous_attenuation(f, P, T, rh, site_elevation, theta_rad)

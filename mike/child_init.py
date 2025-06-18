@@ -1,33 +1,46 @@
 import copy
 from operator import index
-
 from matplotlib.pyplot import axis
 from file_init import Mike
 import numpy as np
 from astropy.table import Table
+from astropy.io import fits
 from file_exception import MyException
 from astropy.time import Time
 
 class Sully(Mike):
-    def __init__(self, file, index, axis, type, feeds=[]):
-        super().__init__(file.file_path)
-        self.data = copy.deepcopy(file.data)
+    def __init__(self, mike, file, index, axis, slice_type, feeds=[]):
+        self.params = [index, axis, slice_type, feeds]
+
+        try:
+            with fits.open(file) as hdul:
+                self.header = hdul[0].header
+                self.data = Table(hdul[1].data)
+        except Exception as e:
+            raise MyException(f"Error reading FITS file: {e}")
+        
+        self.split_slp_feed()
+
+        # self.data = copy.deepcopy(mike.data)
         # Copy other attributes as needed
-        self.data_indicies = copy.deepcopy(file.data_indicies)
-        self.freqs = copy.deepcopy(file.freqs)
-        self.labels = copy.deepcopy(file.labels)
+        self.gain_start = copy.deepcopy(mike.gain_start)
+        self.gain_end = copy.deepcopy(mike.gain_end)
+        self.data_indicies = copy.deepcopy(mike.data_indicies)
+        self.freqs = copy.deepcopy(mike.freqs)
+        self.labels = copy.deepcopy(mike.labels)
 
         #TO be saved
         self.params = []
-        self.continuum = copy.deepcopy(file.continuum)
-        self.spectrum = copy.deepcopy(file.spectrum)
+        self.continuum = copy.deepcopy(mike.continuum)
+        self.spectrum = copy.deepcopy(mike.spectrum)
         # self.parent = file.file_path
-        self.user_cuts(index, axis, type, feeds)
+        self.user_cuts(index, axis, slice_type, feeds)
         self.specMaker()
+        print (self.params)
 
 
 
-    def user_cuts(self, indices, axis, type, feeds=[]):
+    def user_cuts(self, indices, axis, slice_type, feeds=[]):
         """        Apply user-defined cuts to the data based on frequency or time intervals.
         indices: list of tuples defining the intervals to keep or cut
         axis: "spectrum" for frequency cuts, "continuum" for time cuts
@@ -127,3 +140,24 @@ class Sully(Mike):
             # Add the frequency and result to the file's spectrum field
             self.spectrum[ind] = ([np.array(frequencies), np.array(result)])
         return
+    
+    def split_slp_feed(self):
+        '''
+        Split the data of the provided file by channel and feed.
+        '''
+
+        ifnums = np.unique(self.data["IFNUM"])
+        plnums = np.unique(self.data["PLNUM"])
+
+        data = []
+        labels = []
+        for i in ifnums:
+            for j in plnums:
+                subset_mask = (self.data["IFNUM"] == i) & (self.data["PLNUM"] == j)
+                subset_data = self.data[subset_mask]
+                data.append(subset_data)
+                labels.append(f'Feed{i + 1},Channel{j + 1}')
+        self.data = data
+        self.labels = labels
+
+        return 
