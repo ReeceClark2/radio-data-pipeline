@@ -1,13 +1,14 @@
+# Standard library
+import warnings
+
+# Third-party libraries
 import numpy as np
-from astropy.io import fits
-from astropy.table import Table
 from astropy.table import Column
 from astropy.time import Time
-from datetime import datetime
 
+# Local application imports
 from file_exception import MyException
-from file_init import Mike
-import warnings
+from file_init import Radio_File
 
 
 class Val:
@@ -36,6 +37,7 @@ class Val:
         self.validate_header_cards()
 
         self.file.validated_header = True
+        self.file.logger.info("Header validated successfully.")
 
         return
         
@@ -96,31 +98,34 @@ class Val:
     def validate_header_cards(self):
         '''
         Validate all other header cards to ensure 80 byte length and there are no duplicates.
+        Logs warnings for missing values and raises errors for duplicates or incorrect card lengths.
         '''
 
         seen = set()
         for card in self.file.header.cards:
             key, value, comment = card
-            if key in seen and key != "COMMENT" and key != "HISTORY":
+            if key in seen and key not in ("COMMENT", "HISTORY"):
+                self.file.logger.error(f"Duplicate keyword found: {key}")
                 raise MyException(f"Duplicate keyword found: {key}")
             seen.add(key)
 
-        types = []
+        self.file.missing_values = []
         for card in self.file.header.cards:
             key, value, comment = card
-            types.append(type(value))
 
-            card_str = card.__str__()
+            card_str = str(card)
             card_length = len(card_str)
 
             if card_length != 80:
+                self.file.logger.error(f"Card '{key}' is {card_length} characters long: {card_str}")
                 raise MyException(f"Card '{key}' is {card_length} characters long: {card_str}")
-            
+
             if value is None or (isinstance(value, str) and not value.strip()):
+                self.file.logger.warning(f"Missing or empty value for keyword: {key}")
                 self.file.missing_values.append(key)
 
-        if len(self.file.missing_values) > 0:
-            warnings.warn(f"Values do not exist for {self.file.missing_values}", stacklevel=2)
+        if self.file.missing_values:
+            self.file.logger.warning(f"Header missing values: {self.file.missing_values}")
 
         return
 
@@ -154,6 +159,7 @@ class Val:
             self.check_numbers(column)
 
         self.file.validated_data = True
+        self.file.logger.info("Data validated successfully.")
 
         return
 
@@ -304,10 +310,14 @@ if __name__ == "__main__":
     Test function to implement validation.
     '''
 
-    file = Mike("TrackingLowRes/0132783.fits")
+    file = Radio_File("C:/Users/starb/Downloads/0136868.fits")
     v = Val(file)
     v.validate_primary_header()
     v.validate_data()
     
     print(file.validated_header)
     print(file.validated_data)
+
+    for entry in file.logger.get_log_entries():
+        print(f"{entry['level']}: {entry['message']}")
+
