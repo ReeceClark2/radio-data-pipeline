@@ -1,15 +1,13 @@
+# Third-party libraries
 import numpy as np
-from datetime import datetime
-from file_init import Mike
-from val import Val
+
+# Local application imports
+from child_init import Radio_Child_File
+from file_init import Radio_File
+from gain_calibration import Gain_Cal
 from sort import Sort
-from cal import Cal
-import matplotlib
-import os
-from glob import glob
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
-from child_init import Sully
+from utils import average
+from val import Val
 
 
 class Spectrum:
@@ -21,55 +19,31 @@ class Spectrum:
         self.file = file
 
 
-    def average(self, data, axis):
-        '''
-        Integrate across time (axis = 0) or integrate across frequency (axis = 1).
-
-        params: data: astropy FITS table
-
-        returns: array of summed intensities for each frequency
-        '''
-
-        intensities = data['DATA']
-        count = intensities.shape[axis]
-        channel_means = np.sum(intensities, axis=axis) / count
-
-        return channel_means
-
-
-    def make_spec(self, indices=None, feeds=None):
+    def make_spec(self):
         '''
         Generate a spectrum plot for each channel in the data.
 
-        params: file: Mike class file
+        params: file: Radio_File class file
 
         returns: populates the file's spectrum field with frequency and intensity data
         '''
-        #go through each channel in the data
+        # Go through each channel in the data
         for ind, i in enumerate(self.file.data):
-            #get feed and polarization numbers
-            feednum = np.unique(self.file.data[ind]["IFNUM"])[0]
-            polnum = np.unique(self.file.data[ind]["PLNUM"])[0]
-            if feeds is not None and feednum not in feeds:
-                continue   
+            # Only get actual data, not the calibration data
+            data = self.file.data[ind][self.file.data_indicies[ind][0]:self.file.data_indicies[ind][-1]]
 
-            # only get actual data, not the calibration data
-            data = self.file.data[ind][self.file.data_indicies[ind][0]:self.file.data_indicies[ind][1]]
+            # Get the summed intensities for each frequency
+            result = average(data, 0)
 
-            # get the summed intensities for each frequency
-            result = self.average(data, 0)
-            #reverse the list becaise the data is in reverse order
+            # Reverse the list becaise the data is in reverse order
             result = result[::-1]
 
-            #get the frequency range for the channel based on the feed
+            # Get the frequency range for the channel based on the feed
             # if the spectrum field has not been fully populated yet create the frequency range from the original start and stop frequencies
-            if len(self.file.spectrum) == ind:
-                frequencies = np.linspace(self.file.freqs[ind][0], self.file.freqs[ind][1], len(result))
-            else:
-                frequencies = self.file.spectrum[ind][0]
+            frequencies = np.linspace(self.file.freqs[ind][0], self.file.freqs[ind][1], len(result))
 
             # Add the frequency and result to the file's spectrum field
-            self.file.spectrum.append([np.array(frequencies), np.array(result)])
+            self.file.spectrum[ind] = ([np.array(frequencies), np.array(result)])
 
         return
 
@@ -78,10 +52,10 @@ if __name__ == "__main__":
     '''
     Test function to implement calibration.
     '''
-    keep_indices = [[1300, 1400], [1406, 1410], [1412, 1420]]  # Specify the indices you want to keep
+    keep_indicies = [[1300, 1400], [1406, 1410], [1412, 1420]]  # Specify the indicies you want to keep
     feed= [1]  # Specify the feeds you want to keep
     fits_path = "TrackingHighRes/0136484.fits"
-    file = Mike(fits_path)
+    file = Radio_File(fits_path)
     v = Val(file)
     # v.validate_primary_header()
     # v.validate_data()
@@ -95,18 +69,17 @@ if __name__ == "__main__":
     spec = Spectrum(file)
     spec.make_spec()
 
-    if keep_indices != []:
-        child = Sully(file)
+    if keep_indicies != []:
+        child = Radio_Child_File(file)
         sortchild = Sort(child)
         specchild = Spectrum(child)
 
-        sortchild.user_cuts(keep_indices, "spectrum", "cut", feed)
-        specchild.make_spec(keep_indices, feed)
+        sortchild.user_cuts(keep_indicies, "spectrum", "cut", feed)
+        specchild.make_spec(keep_indicies, feed)
         print(file.data[0]["DATA"].shape)
         print(child.data[0]["DATA"].shape)
 
-    c = Cal(file)
+    c = Gain_Cal(file)
     c.compute_gain_deltas()
 
 
- 
