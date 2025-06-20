@@ -1,21 +1,11 @@
+# Third-party libraries
 import numpy as np
-from scipy.stats import linregress
-from astropy import units as u
-from datetime import datetime
-import rcr
+
+# Local application imports
 import itur
-
-from file_exception import MyException
-from file_init import Mike
-from val import Val
+from file_init import Radio_File
 from sort import Sort
-from cal import Cal
-
-import matplotlib.cm as cm
-from matplotlib.colors import Normalize
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
+from val import Val
 
 
 class Weather:
@@ -86,6 +76,9 @@ class Weather:
 
 
     def weather_correction(self):
+        min_transmission = float('inf')
+        max_transmission = float('-inf')
+
         for ind1, i in enumerate(self.file.data):
             subset_indicies = self.file.data_indicies[ind1]
             subset_data = i[subset_indicies[0]:subset_indicies[-1]]
@@ -98,15 +91,29 @@ class Weather:
             f = np.linspace(self.file.freqs[ind1][0], self.file.freqs[ind1][1], len(subset_data['DATA'][0]))
             site_elevation = self.file.header['SITEELEV'] / 1000
 
+            self.file.logger.info(
+                f"Applied weather correction with "
+                f"P={P:.1f} hPa, T={T:.2f} K, RH={rh:.1f}%, "
+                f"alt={np.degrees(theta_rad):.2f}°, elevation={site_elevation:.2f} km, "
+                f"freqs={self.file.freqs[ind1][0]:.2f}-{self.file.freqs[ind1][1]:.2f} MHz"
+            )
+
             A_gas = self.compute_gaseous_attenuation(f, P, T, rh, site_elevation, theta_rad)
             transmission = 10**(-A_gas / 10)
-            print(min(transmission), max(transmission))
-            for j in subset_data['DATA']:
-                # self.compute_rain_attenuation()
-                # self.compute_scintillation_attenuation()
-                # self.compute_cloud_attenuation()
 
-                j *= (1/ transmission)
+            # Track global min/max
+            min_transmission = min(min_transmission, np.min(transmission))
+            max_transmission = max(max_transmission, np.max(transmission))
+
+            for j in subset_data['DATA']:
+                j *= (1 / transmission)
+
+        # Final summary log
+        self.file.logger.info(
+            f"Transmission range across all channels: "
+            f"{min_transmission:.4f}–{max_transmission:.4f} %"
+        )
+
         
         return
 
@@ -115,7 +122,7 @@ class Weather:
 if __name__ == "__main__":
     """Test function to implement continuum data handling."""
 
-    file = Mike("C:/Users/starb/Downloads/0136375.fits")
+    file = Radio_File("C:/Users/starb/Downloads/0136375.fits")
 
     v = Val(file)
     # v.validate_primary_header()
