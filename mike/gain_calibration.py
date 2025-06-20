@@ -58,7 +58,7 @@ class Gain_Cal:
         '''
         Perform functional Robust Chauvenet Rejection on a given dataset.
         '''
-
+        
         x = array[0]
         y = array[1]
 
@@ -67,11 +67,12 @@ class Gain_Cal:
             m = result.slope
             b = result.intercept
             guess = [m, b]
+            error_y = np.full(len(x), 10**-6)
             model = rcr.FunctionalForm(self.linear,
                 x,
                 y,
                 [self.d_linear_1, self.d_linear_2],
-                guess
+                guess, error_y = error_y
             )
             
             r = rcr.RCR(rcr.SS_MEDIAN_DL) 
@@ -84,12 +85,14 @@ class Gain_Cal:
             y = np.array([y[i] for i in indicies])
 
             best_fit_parameters = model.result.parameters
+            best_fit_uncertainties = model.result.parameter_uncertainties    
+            rcr_uncertainty = best_fit_uncertainties
             
             sigma = (1 / (len(x) - 2)) * np.sum((y - best_fit_parameters[1] * x - best_fit_parameters[0]) ** 2)
             m_sd = np.sqrt(sigma / np.sum((x - np.mean(x)) ** 2))
             b_sd = np.sqrt(sigma * ((1 / len(x)) + ((np.mean(x) ** 2) / np.sum((x - np.mean(x)) ** 2))))
             uncertainties = (b_sd, m_sd)
-
+            #print(rcr_uncertainty, uncertainties)
             return best_fit_parameters, uncertainties
 
         else:
@@ -97,32 +100,64 @@ class Gain_Cal:
             b = y[0]
 
         guess = [m, b]
+        error_y = np.full(len(x), 10**-6)
         model = rcr.FunctionalForm(self.linear,
             x,
             y,
             [self.d_linear_1, self.d_linear_2],
-            guess
+            guess , error_y = error_y
         )
         
         r = rcr.RCR(rcr.SS_MEDIAN_DL) 
         r.setParametricModel(model)
         r.performBulkRejection(y)
 
-        indicies = r.result.indicies
-        rejecteddata = r.result.rejectedY
-        nonrejecteddata = r.result.cleanY
+        indices = r.result.indices
 
         x = np.array([x[i] for i in indicies])
         y = np.array([y[i] for i in indicies])
 
         best_fit_parameters = model.result.parameters
-        
-        sigma = (1 / (len(x) - 2)) * np.sum((y - best_fit_parameters[1] * x - best_fit_parameters[0]) ** 2)
+        sigma = (1 / (len(x) - 2)) * np.sum((y - best_fit_parameters[1][0] * x - best_fit_parameters[0][0]) ** 2)
         m_sd = np.sqrt(sigma / np.sum((x - np.mean(x)) ** 2))
         b_sd = np.sqrt(sigma * ((1 / len(x)) + ((np.mean(x) ** 2) / np.sum((x - np.mean(x)) ** 2))))
         uncertainties = (b_sd, m_sd)
-
+        
         return best_fit_parameters, uncertainties
+
+    def average(self, data, axis):
+        '''
+        Average across time (axis = 0) or integrate across frequency (axis = 1).
+        '''
+
+        intensities = np.array([row[6] for row in data])
+        count = intensities.shape[axis]
+        channel_means = np.sum(intensities, axis=axis) / count
+
+        return channel_means
+
+
+    def sdfits_to_array(self, data):
+        '''
+        Convert sdfits data to more accessible, lighter arrays.
+
+        Params:
+        file: Mike class file
+        data: some astropy FITS loaded data
+
+        Return:
+        2D array: times and frequencies
+        '''
+
+
+        freq = self.average(data, axis=1)
+
+        times = Time(data["DATE-OBS"], format='isot')
+        t0 = Time(self.file.header["DATE"], format='isot')
+        
+        time_rel = (times - t0).sec
+
+        return [time_rel, freq]
     
 
     def compute_gain_deltas(self):
@@ -134,10 +169,10 @@ class Gain_Cal:
         ind: index of channel being processed
         '''
         def get_delta(cal):
-            t0 = Time(self.file.header["DATE"], format='isot')
-
-            cal_on_array = sdfits_to_array(cal[cal["CALSTATE"] == 1], t0)
+            
+            cal_on_array = self.sdfits_to_array(cal[cal["CALSTATE"] == 1])
             cal_on_params, cal_on_uncertainties = self.rcr(cal_on_array)
+            
 
             if len(cal[cal["CALSTATE"] == 0]):
                 cal_off_array = sdfits_to_array(cal[cal["CALSTATE"] == 0], t0)
@@ -152,14 +187,14 @@ class Gain_Cal:
             elif time > (cal_on_array[0][-1] + cal_off_array[0][0]) / 2:
                 time = (cal_on_array[0][-1] + cal_off_array[0][0]) / 2
 
-            t_centered = time - np.mean(time)
-
+            t_centered = time - np.median(time)
+            
             delta = (cal_on_params[1] * t_centered + cal_on_params[0]) - (cal_off_params[1] * t_centered + cal_off_params[0])
-            max_delta = ((cal_on_params[1] + cal_on_uncertainties[1]) * t_centered + (cal_on_params[0] + cal_on_uncertainties[0])) - ((cal_off_params[1] - cal_off_uncertainties[1]) * t_centered + (cal_off_params[0] - cal_off_uncertainties[0]))
-            min_delta = ((cal_on_params[1] - cal_on_uncertainties[1]) * t_centered + (cal_on_params[0] - cal_on_uncertainties[0])) - ((cal_off_params[1] + cal_off_uncertainties[1]) * t_centered + (cal_off_params[0] + cal_off_uncertainties[0]))
-            delta_uncertainty = (abs(delta - max_delta) + abs(delta - min_delta)) / 2
-
-            return delta, time, delta_uncertainty, cal_on_array, cal_off_array, cal_on_params, cal_off_params, cal_on_uncertainties, cal_off_uncertainties
+            
+            #Sigma accounting for uncertainty in slope and y intercept from least squares
+            delta_uncertainty = np.sqrt(np.square(cal_on_uncertainties[0]) + np.square(cal_off_uncertainties[0]) + np.square(cal_on_uncertainties[1]) * np.square(t_centered) + np.square(cal_off_uncertainties[1]) * np.square(t_centered))
+            
+            return delta, time, delta_uncertainty
         
 
         def plot_delta_fit(cal_on_array, cal_off_array, cal_on_params, cal_on_unc, cal_off_params, cal_off_unc, save_path=None):
@@ -228,8 +263,10 @@ class Gain_Cal:
                     (np.arange(len(subset_data)) < subset_indicies[0]) &
                     (subset_data["SWPVALID"] == 0)
                 ]
-                delta1, t1, sigma1, calon1, caloff1, calonpara1, caloffpara1, calonunc1, caloffunc1 = get_delta(pre_cal)
-                self.file.gain_start.append([delta1, t1, sigma1, calon1, caloff1])
+                
+                delta1, t1, sigma1 = get_delta(pre_cal)
+                
+                self.file.gain_start.append([delta1, t1, sigma1])
                 #plot_delta_fit(calon1, caloff1, calonpara1, calonunc1, caloffpara1, caloffunc1, save_path = os.path.abspath(f"./plots/delta_plot__precal{ind}.png"))
             except:
                 self.file.gain_start.append(None)
@@ -239,8 +276,8 @@ class Gain_Cal:
                     (np.arange(len(subset_data)) >= subset_indicies[-1]) &
                     (subset_data["SWPVALID"] == 0)
                 ]
-                delta2, t2, sigma2, calon2, caloff2, calonpara2, caloffpara2, calonunc2, caloffunc2 = get_delta(post_cal)
-                self.file.gain_end.append([delta2, t2, sigma2, calon2, caloff2])
+                delta2, t2, sigma2 = get_delta(post_cal)
+                self.file.gain_end.append([delta2, t2, sigma2])
                 #plot_delta_fit(calon2, caloff2, calonpara2, calonunc2, caloffpara2, caloffunc2, save_path = os.path.abspath(f"./plots/delta_plot__postcal{ind}.png")
 
             except:
@@ -261,6 +298,7 @@ class Gain_Cal:
 
         t0 = Time(self.file.header["DATE"], format='isot')
         # Go through each data channel and calibrate the heights
+        
         for ind, i in enumerate(self.file.data):
             feednum = np.unique(self.file.data[ind]["IFNUM"])[0]
             pol = np.unique(self.file.data[ind]["PLNUM"])[0]
@@ -269,6 +307,7 @@ class Gain_Cal:
 
             calib_height_data = []
             # First check if the gain start and end values are present
+            
             if self.file.gain_start[ind] is not None and self.file.gain_end[ind] is not None:
                 # Get all the gain values
                 delta1 = self.file.gain_start[ind][0]
@@ -277,7 +316,7 @@ class Gain_Cal:
                 time2 = self.file.gain_end[ind][1]
                 sigma1 = self.file.gain_start[ind][2]
                 sigma2 = self.file.gain_end[ind][2]
-           
+                
                 #Get z value
                 z_value = abs(delta1 - delta2) / np.sqrt(sigma1**2 + sigma2**2)
 
@@ -286,6 +325,7 @@ class Gain_Cal:
                 data = sdfits_to_array(data, t0)
 
                 # For the time array in the data find the calibrated height for each intensity
+                #If z_value is below 0.6745 average the cal heights, otherwise interpolate between them
                 if z_value < 0.6745:
 
                     for ind, i in enumerate(data[0]):
