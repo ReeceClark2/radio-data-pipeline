@@ -1,14 +1,21 @@
+# Standard library
 import copy
 from operator import index
-from matplotlib.pyplot import axis
-from file_init import Mike
-import numpy as np
-from astropy.table import Table
-from astropy.io import fits
-from file_exception import MyException
-from astropy.time import Time
 
-class Sully(Mike):
+# Third-party libraries
+import numpy as np
+from astropy.io import fits
+from astropy.table import Table
+from astropy.time import Time
+from matplotlib.pyplot import axis
+
+# Local application imports
+from file_exception import MyException
+from file_init import Radio_File
+from utils import average
+
+
+class Radio_Child_File(Radio_File):
     def __init__(self, mike, file, index, axis, slice_type, feeds=[]):
         self.params = [index, axis, slice_type, feeds]
 
@@ -35,21 +42,22 @@ class Sully(Mike):
         self.spectrum = copy.deepcopy(mike.spectrum)
         # self.parent = file.file_path
         self.user_cuts(index, axis, slice_type, feeds)
-        self.specMaker()
+        self.make_spec()
         print (self.params)
 
 
 
-    def user_cuts(self, indices, axis, slice_type, feeds=[]):
+    def user_cuts(self, indicies, axis, slice_type, feeds=[]):
         """        Apply user-defined cuts to the data based on frequency or time intervals.
-        indices: list of tuples defining the intervals to keep or cut
+        indicies: list of tuples defining the intervals to keep or cut
         axis: "spectrum" for frequency cuts, "continuum" for time cuts
         type: "keep" to keep the specified intervals, "cut" to remove them
         feeds: list of feed numbers to apply the cuts to; if empty, applies to all feeds
         """        
         if feeds == []:
             feeds = np.arange(len(np.unique(d['IFNUM'] for d in self.data)))
-        # Ensure indices are in pairs
+        # Ensure indicies are in pairs
+
 
         if axis == "spectrum":
             for i, c in enumerate(self.data):
@@ -65,7 +73,7 @@ class Sully(Mike):
                 freqs = np.linspace(self.freqs[i][0], self.freqs[i][1], length)
 
                 freq_mask = np.zeros_like(freqs, dtype=bool)
-                for fmin, fmax in indices:
+                for fmin, fmax in indicies:
                     if type == "keep":
                         freq_mask |= (freqs >= fmin) & (freqs <= fmax)
                     elif type == "cut":
@@ -98,14 +106,14 @@ class Sully(Mike):
 
                 new_table= []
                 if type == "keep":
-                    for tmin, tmax in indices:
+                    for tmin, tmax in indicies:
                         for j in range(len(time_rel)):
                             if time_rel[j] > tmin and time_rel[j] < tmax:
                                 new_table.append(c[j])
                 elif type == "cut":
                     # Start with all rows, then filter out those within any (tmin, tmax) interval
                     mask = np.ones(len(time_rel), dtype=bool)
-                    for tmin, tmax in indices:
+                    for tmin, tmax in indicies:
                         for j in range(len(time_rel)):
                             if tmin < time_rel[j] < tmax:
                                 mask[j] = False
@@ -118,29 +126,28 @@ class Sully(Mike):
                     # If no rows matched, create an empty table with the same columns
                     self.data[i] = Table(names=c.colnames)
 
-    def specMaker(self):
+
+    def make_spec(self):
         for ind, i in enumerate(self.data):
-            #get feed and polarization numbers
-            feednum = np.unique(self.data[ind]["IFNUM"])[0]
-            polnum = np.unique(self.data[ind]["PLNUM"])[0]
-            # only get actual data, not the calibration data
+            # Only get actual data, not the calibration data
             data = self.data[ind][self.data_indicies[ind][0]:self.data_indicies[ind][1]]
 
-            # get the summed intensities for each frequency
-            intensities = data['DATA']
-            count = intensities.shape[0]
-            result = np.sum(intensities, axis = 0) / count
-            #reverse the list becaise the data is in reverse order
+            # Get the summed intensities for each frequency
+            result = average(data, 0)
+
+            # Reverse the list becaise the data is in reverse order
             result = result[::-1]
 
-            #get the frequency range for the channel based on the feed
+            # Get the frequency range for the channel based on the feed
             # if the spectrum field has not been fully populated yet create the frequency range from the original start and stop frequencies
-            frequencies = self.spectrum[ind][0]
+            frequencies = np.linspace(self.file.freqs[ind][0], self.file.freqs[ind][1], len(result))
 
             # Add the frequency and result to the file's spectrum field
             self.spectrum[ind] = ([np.array(frequencies), np.array(result)])
+        
         return
     
+
     def split_slp_feed(self):
         '''
         Split the data of the provided file by channel and feed.
