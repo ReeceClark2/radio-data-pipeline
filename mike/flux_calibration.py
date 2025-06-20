@@ -1,21 +1,14 @@
-
-from scipy.stats import linregress
-import matplotlib as plt
-from calendar import day_abbr
-from astropy.io import fits
-from astropy.table import Table
+# Third-party libraries
 import numpy as np
-from file_exception import MyException
-import warnings
-from file_init import Mike
-from astropy.table import Column
-import os
-import time
-from cal import Cal
-from val import Val
-from sort import Sort
-from gain_calibration import Gain_Cal
 from astropy.time import Time
+
+# Local application imports
+from file_init import Radio_File
+from gain_calibration import Gain_Cal
+from sort import Sort
+from utils import sdfits_to_array
+from val import Val
+
 
 class Flux_Cal:
     def __init__(self, file, calfile):
@@ -31,7 +24,7 @@ class Flux_Cal:
         """
         Get parameters for calculating true flux in janskys of the calibration source
 
-        param file: Mike class file of calibration source
+        param file: Radio_File class file of calibration source
 
         returns: parameters for equations 14 & 15 for particular calibration source
         """ 
@@ -78,46 +71,11 @@ class Flux_Cal:
         return sources.get(source.upper(), None)
     
 
-    def average(self, data, axis):
-        '''
-        Average across time (axis = 0) or integrate across frequency (axis = 1).
-        '''
-
-        intensities = np.array([row[6] for row in data])
-        count = intensities.shape[axis]
-        channel_means = np.sum(intensities, axis=axis) / count
-
-        return channel_means
-
-
-    def sdfits_to_array(self, data):
-        '''
-        Convert sdfits data to more accessible, lighter arrays.
-
-        Params:
-        file: Mike class file
-        data: some astropy FITS loaded data
-
-        Return:
-        2D array: times and frequencies
-        '''
-
-        freq = self.average(data, axis=1)
-
-        times = Time(data["DATE-OBS"], format='isot')
-        t0 = Time(self.file.header["DATE"], format='isot')
-        
-        time_rel = (times - t0).sec
-
-        return [time_rel, freq]
-    
-    
-
     def on_off_background_subtract(self, onoff_file): 
         """
         Get flux value of the calibration source in noise calibration units
 
-        onoff_file: Mike class on off file of calibration source
+        onoff_file: Radio_File class on off file of calibration source
 
         returns: list of fluxes in noise calibration units, each list value corresponds to the value in a particular channel
         """
@@ -130,8 +88,9 @@ class Flux_Cal:
             offstart = index[channel][2]
             offend = index[channel][3]
 
-            ondata = self.sdfits_to_array(onoff_file.data[channel][onstart:onend])
-            offdata = self.sdfits_to_array(onoff_file.data[channel][offstart:offend])
+            t0 = Time(self.file.header["DATE"], format='isot')
+            ondata = sdfits_to_array(onoff_file.data[channel][onstart:onend], t0)
+            offdata = sdfits_to_array(onoff_file.data[channel][offstart:offend], t0)
 
             onmedian = np.median(ondata)
             offmedian = np.median(offdata)
@@ -213,13 +172,13 @@ class Flux_Cal:
         # Go through each data channel and calibrate the flux
         calib_flux_data = []
 
-        for i, feed in enumerate(self.file.continuum):
+        for ind, feed in enumerate(self.file.continuum):
             
             # Get an array of the continuum data for source
             obsint = feed[1]
             
             # Get flux of calibration source in noise source units
-            calint = calints[i]
+            calint = calints[ind]
             
             # Get flux of calibration source in janskys
             date = Time(self.calfile.header["DATE-OBS"], format='isot')
@@ -231,13 +190,16 @@ class Flux_Cal:
             # For the time array in the data find the calibrated height for each intensity
             new_intensities = [obsint * j_conversion for obsint in obsint]
             calib_flux_data.append(new_intensities)
+            
                 
         for ind, i in enumerate(self.file.continuum):
             old_continuum = self.file.continuum[ind]
             new_continuum = (old_continuum[0], calib_flux_data[ind])
             self.file.continuum[ind] = new_continuum
 
-        self.file.flux_calibrated = True
+            self.file.flux_calibrated.append(ind)
+
+        self.file.logger.info(f"Flux calibrated {len(self.file.flux_calibrated)} of {len(self.file.data)} channels.")
 
         return
 
@@ -247,8 +209,8 @@ if __name__ == "__main__":
     Test function to implement calibration.
     '''    
 
-    file = Mike("C://Users//leesnow//Downloads//0136376.fits")
-    calfile = Mike("C://Users//leesnow//Downloads//0117613.fits")
+    file = Radio_File("C://Users//leesnow//Downloads//0136376.fits")
+    calfile = Radio_File("C://Users//leesnow//Downloads//0117613.fits")
 
     v = Val(file)
     vc = Val(calfile)
