@@ -37,17 +37,17 @@ class Radio_File:
         continuum:
         '''
 
+        self.file_path = file_path
+        self.logger = Log_Collector(name=f"logger_{file_path}")
+
         try:
             with fits.open(file_path) as hdul:
                 self.header = hdul[0].header
                 self.data = Table(hdul[1].data)
-            self.file.logger.info(f"Error reading FITS file: {e}")
+            self.logger.info(f"FITS file loaded.")
         except Exception as e:
-            self.file.logger.error(f"Error reading FITS file: {e}")
+            self.logger.error(f"Error reading FITS file: {e}")
             raise MyException(f"Error reading FITS file: {e}")
-        
-        self.file_path = file_path
-        self.logger = Log_Collector(name=f"logger_{file_path}")
 
         self.validated_header = False
         self.validated_data = False
