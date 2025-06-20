@@ -1,17 +1,20 @@
-from astropy.time import Time
-import numpy as np
-from scipy.stats import linregress
+# Standard library
+import os
+
+# Third-party libraries
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import numpy as np
+from astropy.time import Time
+from scipy.stats import linregress
+
+# Local application imports
 import rcr
-import os
-from file_exception import MyException
-from file_init import Mike
-from child_init import Sully
-from cal import Cal
-from val import Val
+from file_init import Radio_File
 from sort import Sort
+from utils import sdfits_to_array
+from val import Val
 
 
 class Gain_Cal:
@@ -75,10 +78,10 @@ class Gain_Cal:
             r.setParametricModel(model)
             r.performBulkRejection(y)
 
-            indices = r.result.indices
+            indicies = r.result.indicies
 
-            x = np.array([x[i] for i in indices])
-            y = np.array([y[i] for i in indices])
+            x = np.array([x[i] for i in indicies])
+            y = np.array([y[i] for i in indicies])
 
             best_fit_parameters = model.result.parameters
             
@@ -105,12 +108,12 @@ class Gain_Cal:
         r.setParametricModel(model)
         r.performBulkRejection(y)
 
-        indices = r.result.indices
+        indicies = r.result.indicies
         rejecteddata = r.result.rejectedY
         nonrejecteddata = r.result.cleanY
 
-        x = np.array([x[i] for i in indices])
-        y = np.array([y[i] for i in indices])
+        x = np.array([x[i] for i in indicies])
+        y = np.array([y[i] for i in indicies])
 
         best_fit_parameters = model.result.parameters
         
@@ -120,41 +123,6 @@ class Gain_Cal:
         uncertainties = (b_sd, m_sd)
 
         return best_fit_parameters, uncertainties
-
-
-    def average(self, data, axis):
-        '''
-        Average across time (axis = 0) or integrate across frequency (axis = 1).
-        '''
-
-        intensities = np.array([row[6] for row in data])
-        count = intensities.shape[axis]
-        channel_means = np.sum(intensities, axis=axis) / count
-
-        return channel_means
-
-
-    def sdfits_to_array(self, data):
-        '''
-        Convert sdfits data to more accessible, lighter arrays.
-
-        Params:
-        file: Mike class file
-        data: some astropy FITS loaded data
-
-        Return:
-        2D array: times and frequencies
-        '''
-
-
-        freq = self.average(data, axis=1)
-
-        times = Time(data["DATE-OBS"], format='isot')
-        t0 = Time(self.file.header["DATE"], format='isot')
-        
-        time_rel = (times - t0).sec
-
-        return [time_rel, freq]
     
 
     def compute_gain_deltas(self):
@@ -162,15 +130,17 @@ class Gain_Cal:
         Compute gain deltas with pre calibration and post calibration.
 
         Params:
-        file: Mike class file
+        file: Radio_File class file
         ind: index of channel being processed
         '''
         def get_delta(cal):
-            cal_on_array = self.sdfits_to_array(cal[cal["CALSTATE"] == 1])
+            t0 = Time(self.file.header["DATE"], format='isot')
+
+            cal_on_array = sdfits_to_array(cal[cal["CALSTATE"] == 1], t0)
             cal_on_params, cal_on_uncertainties = self.rcr(cal_on_array)
 
             if len(cal[cal["CALSTATE"] == 0]):
-                cal_off_array = self.sdfits_to_array(cal[cal["CALSTATE"] == 0])
+                cal_off_array = sdfits_to_array(cal[cal["CALSTATE"] == 0], t0)
             else:
                 return None
             
@@ -188,10 +158,10 @@ class Gain_Cal:
             max_delta = ((cal_on_params[1] + cal_on_uncertainties[1]) * t_centered + (cal_on_params[0] + cal_on_uncertainties[0])) - ((cal_off_params[1] - cal_off_uncertainties[1]) * t_centered + (cal_off_params[0] - cal_off_uncertainties[0]))
             min_delta = ((cal_on_params[1] - cal_on_uncertainties[1]) * t_centered + (cal_on_params[0] - cal_on_uncertainties[0])) - ((cal_off_params[1] + cal_off_uncertainties[1]) * t_centered + (cal_off_params[0] + cal_off_uncertainties[0]))
             delta_uncertainty = (abs(delta - max_delta) + abs(delta - min_delta)) / 2
-            #print(delta, delta_uncertainty)
 
             return delta, time, delta_uncertainty, cal_on_array, cal_off_array, cal_on_params, cal_off_params, cal_on_uncertainties, cal_off_uncertainties
         
+
         def plot_delta_fit(cal_on_array, cal_off_array, cal_on_params, cal_on_unc, cal_off_params, cal_off_unc, save_path=None):
             
             time = (np.mean(cal_on_array[0]) + np.mean(cal_off_array[0])) / 2
@@ -252,10 +222,10 @@ class Gain_Cal:
                         
         for ind, i in enumerate(self.file.data):
             subset_data = self.file.data[ind]
-            subset_indices = self.file.data_indicies[ind]
+            subset_indicies = self.file.data_indicies[ind]
             try:
                 pre_cal = subset_data[
-                    (np.arange(len(subset_data)) < subset_indices[0]) &
+                    (np.arange(len(subset_data)) < subset_indicies[0]) &
                     (subset_data["SWPVALID"] == 0)
                 ]
                 delta1, t1, sigma1, calon1, caloff1, calonpara1, caloffpara1, calonunc1, caloffunc1 = get_delta(pre_cal)
@@ -266,7 +236,7 @@ class Gain_Cal:
 
             try:
                 post_cal = subset_data[
-                    (np.arange(len(subset_data)) >= subset_indices[-1]) &
+                    (np.arange(len(subset_data)) >= subset_indicies[-1]) &
                     (subset_data["SWPVALID"] == 0)
                 ]
                 delta2, t2, sigma2, calon2, caloff2, calonpara2, caloffpara2, calonunc2, caloffunc2 = get_delta(post_cal)
@@ -284,15 +254,13 @@ class Gain_Cal:
         """
         calibrate the continuum data.
 
-        param file: Mike class file
+        param file: Radio_File class file
 
         returns: adds calibrated height data to the file's continuum
         """
 
-        calibrations = 0
-        datas = len(self.file.data)
+        t0 = Time(self.file.header["DATE"], format='isot')
         # Go through each data channel and calibrate the heights
-
         for ind, i in enumerate(self.file.data):
             feednum = np.unique(self.file.data[ind]["IFNUM"])[0]
             pol = np.unique(self.file.data[ind]["PLNUM"])[0]
@@ -302,8 +270,6 @@ class Gain_Cal:
             calib_height_data = []
             # First check if the gain start and end values are present
             if self.file.gain_start[ind] is not None and self.file.gain_end[ind] is not None:
-                calibrations += 1
-
                 # Get all the gain values
                 delta1 = self.file.gain_start[ind][0]
                 delta2 = self.file.gain_end[ind][0]
@@ -314,10 +280,10 @@ class Gain_Cal:
            
                 #Get z value
                 z_value = abs(delta1 - delta2) / np.sqrt(sigma1**2 + sigma2**2)
-                print(z_value)
+
                 # Get an array of the continuum data
                 data = self.file.data[ind]
-                data = self.sdfits_to_array(data)
+                data = sdfits_to_array(data, t0)
 
                 # For the time array in the data find the calibrated height for each intensity
                 if z_value < 0.6745:
@@ -335,37 +301,34 @@ class Gain_Cal:
                         data[1][ind] = (data[1][ind] / delta)
                 
                 calib_height_data = data
+                self.file.gain_calibrated.append(ind)
                 
-            
             # If gain_start is None and gain_end is not None, use gain_end for calibration
             elif self.file.gain_start[ind] is None and self.file.gain_end[ind] is not None:
-                calibrations += 1
-
                 delta = self.file.gain_end[ind][0]
 
                 data = self.file.data[ind]
-                data = self.sdfits_to_array(data)
+                data = sdfits_to_array(data, t0)
 
                 temp = data[1] / delta
                 calib_height_data = [data[0], temp]
+                self.file.gain_calibrated.append(ind)
 
             # If gain_start is present but gain_end is not, use gain_start for calibration
             elif self.file.gain_start[ind] is not None and self.file.gain_end[ind] is None:
-                calibrations += 1
                 delta = self.file.gain_start[ind][0]
 
                 data = self.file.data[ind]
-                data = self.sdfits_to_array(data)
+                data = sdfits_to_array(data, t0)
 
                 data[1] = data[1] / delta
                 calib_height_data = data
+                self.file.gain_calibrated.append(ind)
 
             # If gain_start is present but gain_end is not, use gain_start for calibration
             elif self.file.gain_start[ind] is None and self.file.gain_end[ind] is None:
-                calibrations += 1
-                
                 data = self.file.data[ind]
-                data = self.sdfits_to_array(data)
+                data = sdfits_to_array(data, t0)
 
                 calib_height_data = data
 
@@ -373,15 +336,15 @@ class Gain_Cal:
                 # But gotta turn it into a list of time, intensity lists
 
                 self.file.continuum[ind] = (calib_height_data)
+                self.file.gain_calibrated.append(ind)
+
                 continue
 
             # Add the calibrated height data to continuum
         
             self.file.continuum.append(calib_height_data)
-        
-            # Check if all calibrations are done
-            if calibrations == datas:
-                self.file.gain_calibrated = True
+
+        self.file.logger.info(f"Gain calibrated {len(self.file.gain_calibrated)} of {len(self.file.data)} channels.")
 
         return
     
@@ -395,10 +358,10 @@ class Gain_Cal:
 if __name__ == "__main__":
     """Test function to implement continuum data handling."""
 
-    keep_times = [[8,12], [1404, 1410], [1412, 1420]]  # Specify the indices you want to keep
+    keep_times = [[8,12], [1404, 1410], [1412, 1420]]  # Specify the indicies you want to keep
     feed= [0]  # Specify the feeds you want to keep
 
-    file = Mike("C://Users//leesnow//Downloads//0136376.fits")
+    file = Radio_File("C://Users//leesnow//Downloads//0136376.fits")
     data = Gain_Cal(file)
 
     v = Val(file)
@@ -415,11 +378,9 @@ if __name__ == "__main__":
     g.gain_cal()
     
 
-
-
     plt.savefig("testplot")
 """     if keep_times != []:
-        child = Sully(file)
+        child = Radio_Child_File(file)
         sortchild = Sort(child)
         contChild = Gain_Cal(child)
 
