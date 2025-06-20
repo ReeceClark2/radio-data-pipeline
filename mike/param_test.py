@@ -1,18 +1,22 @@
-from file_init import Mike
-from val import Val
-from sort import Sort
-from weather import Weather
-from gain_calibration import Gain_Cal
-from flux_calibration import Flux_Cal
-from spectrum import Spectrum
-from child_init import Sully
-
-import numpy as np
-import matplotlib
+# Standard library
 import os
 import time
+
+# Third-party libraries
+import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import numpy as np
+
+# Local application imports
+from child_init import Radio_Child_File
+from file_init import Radio_File
+from flux_calibration import Flux_Cal
+from gain_calibration import Gain_Cal
+from sort import Sort
+from spectrum import Spectrum
+from val import Val
+from weather import Weather
 
 
 if __name__ == "__main__":
@@ -22,8 +26,8 @@ if __name__ == "__main__":
     for fits_filename in fits_files:
         file_path = os.path.join(fits_folder, fits_filename)
 
-        file = Mike(file_path)
-        cal_file = Mike("TrackingHighRes/0136483.fits")
+        file = Radio_File(file_path)
+        cal_file = Radio_File("TrackingHighRes/0136483.fits")
             
         v = Val(file)
         v.validate_primary_header()
@@ -60,10 +64,10 @@ if __name__ == "__main__":
 
         start_time = time.time()
         print(f"Processing file: {fits_filename}")
-        keep_indices = [[7,13], [15,21]]  # Specify the indices you want to keep
+        keep_indicies = [[7,13], [15,21]]  # Specify the indicies you want to keep
         feed= [0,1]  # Specify the feeds you want to keep
-        if keep_indices != []:
-            child = Sully(file, file_path, keep_indices, "continuum", "cut", feed)
+        if keep_indicies != []:
+            child = Radio_Child_File(file, file_path, keep_indicies, "continuum", "cut", feed)
             child.user_cuts([[1300, 1400], [1402, 1404], [1412, 1420]], "spectrum", "keep", feed)
             child.specMaker()
             gcChild = Gain_Cal(child)
@@ -85,8 +89,8 @@ if __name__ == "__main__":
 
     fig, axs = plt.subplots(2, 2, figsize=(12, 8))
     file_path = "TrackingHighRes/0136764.fits"
-    file = Mike(file_path)
-    cal_file = Mike("TrackingHighRes/0136483.fits")
+    file = Radio_File(file_path)
+    cal_file = Radio_File("TrackingHighRes/0136483.fits")
 
 
     v = Val(file)
@@ -120,10 +124,10 @@ if __name__ == "__main__":
     spec = Spectrum(file)
     spec.make_spec()
 
-    keep_indices = [[7,13], [15,21]]  # Specify the indices you want to keep
+    keep_indicies = [[7,13], [15,21]]  # Specify the indicies you want to keep
     feed= [0,1]  # Specify the feeds you want to keep
-    if keep_indices != []:
-        child = Sully(file, file_path, keep_indices, "continuum", "cut", feed)
+    if keep_indicies != []:
+        child = Radio_Child_File(file, file_path, keep_indicies, "continuum", "cut", feed)
         child.user_cuts([[1300, 1400], [1402, 1404], [1412, 1420]], "spectrum", "keep", feed)
         child.specMaker()
         print('hi')
