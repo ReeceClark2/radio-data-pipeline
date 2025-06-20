@@ -42,20 +42,15 @@ if __name__ == "__main__":
     w.weather_correction()
 
     gc = Gain_Cal(cal_file)
-    gc.gain_cal()
-
-    for entry in file.logger.get_log_entries():
-        print(f"{entry['level']}: {entry['message']}")
-    print('\n\n')
-    for entry in cal_file.logger.get_log_entries():
-        print(f"{entry['level']}: {entry['message']}")    
+    gc.gain_cal()   
 
     # fc = Flux_Cal(file, cal_file)
-    # # fc.flux_cal()
+    # fc.flux_cal()
 
-    # spec = Spectrum(file)
-    # spec.make_spec()
+    spec = Spectrum(file)
+    spec.make_spec()
 
+    print('done')
 
     # fig, axs = plt.subplots(2, 2, figsize=(12, 8))
 

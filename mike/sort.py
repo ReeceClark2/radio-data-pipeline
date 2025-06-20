@@ -29,6 +29,7 @@ class Sort:
         plnums = np.unique(self.file.data["PLNUM"])
 
         self.file.continuum.extend([None for i in range(len(ifnums) * len(plnums))])
+        self.file.spectrum.extend([None for i in range(len(ifnums) * len(plnums))])
 
         data = []
         labels = []
@@ -241,6 +242,7 @@ class Sort:
             print(data_start_ind, post_cal_start_ind)
             print(len(pre_cal),len(data),len(post_cal))
             print (data_start_ind, post_cal_start_ind)
+
 
 if __name__ == "__main__":
     file = Radio_File("C:/Users/starb/Downloads/0136870.fits")

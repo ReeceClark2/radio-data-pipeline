@@ -16,7 +16,7 @@ from utils import average
 
 
 class Radio_Child_File(Radio_File):
-    def __init__(self, mike, file, index, axis, slice_type, feeds=[]):
+    def __init__(self, radio_file, file, index, axis, slice_type, feeds=[]):
         self.params = [index, axis, slice_type, feeds]
 
         try:
@@ -28,23 +28,21 @@ class Radio_Child_File(Radio_File):
         
         self.split_slp_feed()
 
-        # self.data = copy.deepcopy(mike.data)
+        # self.data = copy.deepcopy(radio_file.data)
         # Copy other attributes as needed
-        self.gain_start = copy.deepcopy(mike.gain_start)
-        self.gain_end = copy.deepcopy(mike.gain_end)
-        self.data_indicies = copy.deepcopy(mike.data_indicies)
-        self.freqs = copy.deepcopy(mike.freqs)
-        self.labels = copy.deepcopy(mike.labels)
+        self.gain_start = copy.deepcopy(radio_file.gain_start)
+        self.gain_end = copy.deepcopy(radio_file.gain_end)
+        self.data_indicies = copy.deepcopy(radio_file.data_indicies)
+        self.freqs = copy.deepcopy(radio_file.freqs)
+        self.labels = copy.deepcopy(radio_file.labels)
 
         #TO be saved
         self.params = []
-        self.continuum = copy.deepcopy(mike.continuum)
-        self.spectrum = copy.deepcopy(mike.spectrum)
+        self.continuum = copy.deepcopy(radio_file.continuum)
+        self.spectrum = copy.deepcopy(radio_file.spectrum)
         # self.parent = file.file_path
         self.user_cuts(index, axis, slice_type, feeds)
         self.make_spec()
-        print (self.params)
-
 
 
     def user_cuts(self, indicies, axis, slice_type, feeds=[]):

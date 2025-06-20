@@ -124,40 +124,6 @@ class Gain_Cal:
         uncertainties = (b_sd, m_sd)
         
         return best_fit_parameters, uncertainties
-
-    def average(self, data, axis):
-        '''
-        Average across time (axis = 0) or integrate across frequency (axis = 1).
-        '''
-
-        intensities = np.array([row[6] for row in data])
-        count = intensities.shape[axis]
-        channel_means = np.sum(intensities, axis=axis) / count
-
-        return channel_means
-
-
-    def sdfits_to_array(self, data):
-        '''
-        Convert sdfits data to more accessible, lighter arrays.
-
-        Params:
-        file: Mike class file
-        data: some astropy FITS loaded data
-
-        Return:
-        2D array: times and frequencies
-        '''
-
-
-        freq = self.average(data, axis=1)
-
-        times = Time(data["DATE-OBS"], format='isot')
-        t0 = Time(self.file.header["DATE"], format='isot')
-        
-        time_rel = (times - t0).sec
-
-        return [time_rel, freq]
     
 
     def compute_gain_deltas(self):
@@ -169,11 +135,10 @@ class Gain_Cal:
         ind: index of channel being processed
         '''
         def get_delta(cal):
-            
-            cal_on_array = self.sdfits_to_array(cal[cal["CALSTATE"] == 1])
+            t0 = Time(self.header["DATE"], format="isot")
+            cal_on_array = sdfits_to_array(cal[cal["CALSTATE"] == 1], t0)
             cal_on_params, cal_on_uncertainties = self.rcr(cal_on_array)
             
-
             if len(cal[cal["CALSTATE"] == 0]):
                 cal_off_array = sdfits_to_array(cal[cal["CALSTATE"] == 0], t0)
             else:
@@ -220,9 +185,7 @@ class Gain_Cal:
             t_range_on = np.linspace(t_on_center.min(), t_on_center.max(), 300)
             t_range_off = np.linspace(t_off_center.min(), t_off_center.max(), 300) 
             
-
-        
-          
+            
             # Max and min delta lines
 
             # Fit lines over restricted ranges
