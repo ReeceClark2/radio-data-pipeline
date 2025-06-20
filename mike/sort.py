@@ -1,12 +1,9 @@
-from collections import defaultdict
-from datetime import datetime
-from astropy.time import Time
-from tabnanny import check
-from scipy.ndimage import label, median_filter
+# Third-party libraries
 import numpy as np
-from file_init import Mike
-from file_exception import MyException
 from astropy.table import Table
+
+# Local application imports
+from file_init import Radio_File
 
 
 class Sort:
@@ -49,7 +46,7 @@ class Sort:
 
     def divide_section(self, section):
         '''
-        Locate indices within some channel of the data.
+        Locate indicies within some channel of the data.
 
         Params:
         section: astropy FITS table
@@ -133,7 +130,7 @@ class Sort:
     def get_startend_freqs(self):
         '''
         Get the start and stop frequencies for each channel in the data.
-        param file: Mike class file
+        param file: Radio_File class file
         returns: populates the file's freqs field with start and stop frequencies
         '''
         freqs = []
@@ -181,7 +178,7 @@ class Sort:
     def get_startstop_channels(self):
         '''
         Get the start and stop channels for each channel in the data.
-        param file: Mike class file
+        param file: Radio_File class file
         returns: cuts out the channels in the data that are not in the start and stop channels
         '''
 
@@ -233,9 +230,9 @@ class Sort:
         '''
 
         for ind, i in enumerate(self.file.data):
-            current_indices = self.file.data_indicies[ind]
-            data_start_ind = current_indices[0]
-            post_cal_start_ind = current_indices[1]
+            current_indicies = self.file.data_indicies[ind]
+            data_start_ind = current_indicies[0]
+            post_cal_start_ind = current_indicies[1]
 
             pre_cal = i[:data_start_ind]
             data = i[data_start_ind:post_cal_start_ind]
@@ -246,10 +243,10 @@ class Sort:
             print (data_start_ind, post_cal_start_ind)
 
 if __name__ == "__main__":
-    file = Mike("C:/Users/starb/Downloads/0136870.fits")
+    file = Radio_File("C:/Users/starb/Downloads/0136870.fits")
 
     np.set_printoptions(threshold=100000)
-    keep_indices = [[1394,1400], [1401, 1402]]  # Example indices to keep
+    keep_indicies = [[1394,1400], [1401, 1402]]  # Example indicies to keep
 
     s = Sort(file)
     s.sort()
