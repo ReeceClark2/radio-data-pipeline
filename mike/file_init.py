@@ -71,9 +71,10 @@ if __name__ == "__main__":
     Test function to test uploaded file.
     '''
 
-    file = Radio_File("C:/Users/starb/Downloads/0136645.fits")
+    file = Radio_File("TrackingHighRes/0136378.fits")
 
     np.set_printoptions(threshold=100000)
 
     print(repr(file.header))
     print(repr(file.data['TAMBIENT']))
+    print(repr(file.channels))

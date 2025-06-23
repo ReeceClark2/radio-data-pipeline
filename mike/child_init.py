@@ -13,7 +13,7 @@ from matplotlib.pyplot import axis
 from file_exception import MyException
 from file_init import Radio_File
 from utils import average
-
+from logger import Log_Collector
 
 class Radio_Child_File(Radio_File):
     def __init__(self, radio_file, file, index, axis, slice_type, feeds=[]):
@@ -28,8 +28,8 @@ class Radio_Child_File(Radio_File):
         
         self.split_slp_feed()
 
-        # self.data = copy.deepcopy(radio_file.data)
         # Copy other attributes as needed
+        self.file_path = copy.deepcopy(radio_file.file_path)
         self.gain_start = copy.deepcopy(radio_file.gain_start)
         self.gain_end = copy.deepcopy(radio_file.gain_end)
         self.data_indicies = copy.deepcopy(radio_file.data_indicies)
@@ -37,8 +37,11 @@ class Radio_Child_File(Radio_File):
         self.labels = copy.deepcopy(radio_file.labels)
 
         #TO be saved
-        self.params = []
+        self.logger = Log_Collector(name=f"logger_{self.file_path}")
+        self.params = [index, axis, slice_type, feeds]
         self.continuum = copy.deepcopy(radio_file.continuum)
+        self.gain_calibrated = []
+        self.flux_calibrated = []
         self.spectrum = copy.deepcopy(radio_file.spectrum)
         # self.parent = file.file_path
         self.user_cuts(index, axis, slice_type, feeds)
@@ -49,7 +52,7 @@ class Radio_Child_File(Radio_File):
         """        Apply user-defined cuts to the data based on frequency or time intervals.
         indicies: list of tuples defining the intervals to keep or cut
         axis: "spectrum" for frequency cuts, "continuum" for time cuts
-        type: "keep" to keep the specified intervals, "cut" to remove them
+        slice_type: "keep" to keep the specified intervals, "cut" to remove them
         feeds: list of feed numbers to apply the cuts to; if empty, applies to all feeds
         """        
         if feeds == []:
@@ -72,11 +75,11 @@ class Radio_Child_File(Radio_File):
 
                 freq_mask = np.zeros_like(freqs, dtype=bool)
                 for fmin, fmax in indicies:
-                    if type == "keep":
+                    if slice_type == "keep":
                         freq_mask |= (freqs >= fmin) & (freqs <= fmax)
-                    elif type == "cut":
+                    elif slice_type == "cut":
                         freq_mask |= (freqs >= fmin) & (freqs <= fmax)
-                if type == "cut":
+                if slice_type == "cut":
                     freq_mask = ~freq_mask
 
                 # Apply mask to each row in the DATA column
@@ -103,12 +106,12 @@ class Radio_Child_File(Radio_File):
                 time_rel = (times - t0).sec  # Time delta in seconds
 
                 new_table= []
-                if type == "keep":
+                if slice_type == "keep":
                     for tmin, tmax in indicies:
                         for j in range(len(time_rel)):
                             if time_rel[j] > tmin and time_rel[j] < tmax:
                                 new_table.append(c[j])
-                elif type == "cut":
+                elif slice_type == "cut":
                     # Start with all rows, then filter out those within any (tmin, tmax) interval
                     mask = np.ones(len(time_rel), dtype=bool)
                     for tmin, tmax in indicies:
@@ -118,11 +121,7 @@ class Radio_Child_File(Radio_File):
                     new_table = [c[j] for j in range(len(time_rel)) if mask[j]]
                     # Convert new_table to an astropy Table only if it's not empty
 
-                if new_table:
-                    self.data[i] = Table(rows=new_table, names=c.colnames)
-                else:
-                    # If no rows matched, create an empty table with the same columns
-                    self.data[i] = Table(names=c.colnames)
+                self.data[i] = Table(rows=new_table, names=c.colnames)
 
 
     def make_spec(self):
@@ -138,7 +137,7 @@ class Radio_Child_File(Radio_File):
 
             # Get the frequency range for the channel based on the feed
             # if the spectrum field has not been fully populated yet create the frequency range from the original start and stop frequencies
-            frequencies = np.linspace(self.file.freqs[ind][0], self.file.freqs[ind][1], len(result))
+            frequencies = np.linspace(self.freqs[ind][0], self.freqs[ind][1], len(result))
 
             # Add the frequency and result to the file's spectrum field
             self.spectrum[ind] = ([np.array(frequencies), np.array(result)])

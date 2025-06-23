@@ -15,8 +15,8 @@ from weather import Weather
 
 
 if __name__ == "__main__":
-    file = Radio_File("C:/Users/starb/Downloads/0104096.fits")
-    cal_file = Radio_File("C:/Users/starb/Downloads/0105581.fits")
+    file = Radio_File("EpicONoFFHiRes/0135418.fits")
+    cal_file = Radio_File("EpicONoFFHiRes/0135418.fits")
 
     v = Val(file)
     v.validate_primary_header()

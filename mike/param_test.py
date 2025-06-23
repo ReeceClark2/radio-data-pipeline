@@ -69,7 +69,7 @@ if __name__ == "__main__":
         if keep_indicies != []:
             child = Radio_Child_File(file, file_path, keep_indicies, "continuum", "cut", feed)
             child.user_cuts([[1300, 1400], [1402, 1404], [1412, 1420]], "spectrum", "keep", feed)
-            child.specMaker()
+            child.make_spec()
             gcChild = Gain_Cal(child)
             gcChild.gain_cal()
 
@@ -129,7 +129,7 @@ if __name__ == "__main__":
     if keep_indicies != []:
         child = Radio_Child_File(file, file_path, keep_indicies, "continuum", "cut", feed)
         child.user_cuts([[1300, 1400], [1402, 1404], [1412, 1420]], "spectrum", "keep", feed)
-        child.specMaker()
+        child.make_spec()
         print('hi')
         gcChild = Gain_Cal(child)
         gcChild.gain_cal()
