@@ -80,7 +80,7 @@ class Flux_Cal:
         returns: list of fluxes in noise calibration units, each list value corresponds to the value in a particular channel
         """
      
-        index = onoff_file.data_indicies
+        index = onoff_file.data_indices
         calint= []
         for channel, i in enumerate(self.file.data):
             onstart = index[channel][0]
@@ -197,9 +197,6 @@ class Flux_Cal:
             new_continuum = (old_continuum[0], calib_flux_data[ind])
             self.file.continuum[ind] = new_continuum
 
-            self.file.flux_calibrated.append(ind)
-
-        self.file.logger.info(f"Flux calibrated {len(self.file.flux_calibrated)} of {len(self.file.data)} channels.")
 
         return
 
@@ -219,13 +216,7 @@ if __name__ == "__main__":
     s.sort()
     
     sc = Sort(calfile)
-    sc.sort
-    
-    c = Cal(file)
-    c.compute_gain_deltas()
-
-    cc = Cal(calfile)
-    cc.compute_gain_deltas()
+    sc.sort()
     
     Data = Gain_Cal(file)
     Data.gain_cal(file)

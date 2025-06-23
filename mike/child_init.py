@@ -15,6 +15,7 @@ from file_init import Radio_File
 from utils import average
 from logger import Log_Collector
 
+
 class Radio_Child_File(Radio_File):
     def __init__(self, radio_file, file, index, axis, slice_type, feeds=[]):
         self.params = [index, axis, slice_type, feeds]
@@ -32,7 +33,7 @@ class Radio_Child_File(Radio_File):
         self.file_path = copy.deepcopy(radio_file.file_path)
         self.gain_start = copy.deepcopy(radio_file.gain_start)
         self.gain_end = copy.deepcopy(radio_file.gain_end)
-        self.data_indicies = copy.deepcopy(radio_file.data_indicies)
+        self.data_indices = copy.deepcopy(radio_file.data_indices)
         self.freqs = copy.deepcopy(radio_file.freqs)
         self.labels = copy.deepcopy(radio_file.labels)
 
@@ -40,7 +41,6 @@ class Radio_Child_File(Radio_File):
         self.logger = Log_Collector(name=f"logger_{self.file_path}")
         self.params = [index, axis, slice_type, feeds]
         self.continuum = copy.deepcopy(radio_file.continuum)
-        self.gain_calibrated = []
         self.flux_calibrated = []
         self.spectrum = copy.deepcopy(radio_file.spectrum)
         # self.parent = file.file_path
@@ -48,16 +48,16 @@ class Radio_Child_File(Radio_File):
         self.make_spec()
 
 
-    def user_cuts(self, indicies, axis, slice_type, feeds=[]):
+    def user_cuts(self, indices, axis, slice_type, feeds=[]):
         """        Apply user-defined cuts to the data based on frequency or time intervals.
-        indicies: list of tuples defining the intervals to keep or cut
+        indices: list of tuples defining the intervals to keep or cut
         axis: "spectrum" for frequency cuts, "continuum" for time cuts
         slice_type: "keep" to keep the specified intervals, "cut" to remove them
         feeds: list of feed numbers to apply the cuts to; if empty, applies to all feeds
         """        
         if feeds == []:
             feeds = np.arange(len(np.unique(d['IFNUM'] for d in self.data)))
-        # Ensure indicies are in pairs
+        # Ensure indices are in pairs
 
 
         if axis == "spectrum":
@@ -74,7 +74,7 @@ class Radio_Child_File(Radio_File):
                 freqs = np.linspace(self.freqs[i][0], self.freqs[i][1], length)
 
                 freq_mask = np.zeros_like(freqs, dtype=bool)
-                for fmin, fmax in indicies:
+                for fmin, fmax in indices:
                     if slice_type == "keep":
                         freq_mask |= (freqs >= fmin) & (freqs <= fmax)
                     elif slice_type == "cut":
@@ -107,14 +107,14 @@ class Radio_Child_File(Radio_File):
 
                 new_table= []
                 if slice_type == "keep":
-                    for tmin, tmax in indicies:
+                    for tmin, tmax in indices:
                         for j in range(len(time_rel)):
                             if time_rel[j] > tmin and time_rel[j] < tmax:
                                 new_table.append(c[j])
                 elif slice_type == "cut":
                     # Start with all rows, then filter out those within any (tmin, tmax) interval
                     mask = np.ones(len(time_rel), dtype=bool)
-                    for tmin, tmax in indicies:
+                    for tmin, tmax in indices:
                         for j in range(len(time_rel)):
                             if tmin < time_rel[j] < tmax:
                                 mask[j] = False
@@ -127,7 +127,7 @@ class Radio_Child_File(Radio_File):
     def make_spec(self):
         for ind, i in enumerate(self.data):
             # Only get actual data, not the calibration data
-            data = self.data[ind][self.data_indicies[ind][0]:self.data_indicies[ind][1]]
+            data = self.data[ind][self.data_indices[ind][0]:self.data_indices[ind][1]]
 
             # Get the summed intensities for each frequency
             result = average(data, 0)

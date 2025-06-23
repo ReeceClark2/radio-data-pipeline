@@ -20,10 +20,10 @@ class Radio_File:
         validated_header: check whether header has been validated
         validated_data: check whether data has been validated
 
-        data_indicies: list of arrays of shape (1,2) (track)
+        data_indices: list of arrays of shape (1,2) (track)
             1st value is the first data point in the corresponding indexed data array
             2nd value is the first post calibration point in the corresponding indexed data array
-        data_indicies: list of arrays of shape (1,2,3,4) (on/off)
+        data_indices: list of arrays of shape (1,2,3,4) (on/off)
             1st value is the first on data point in the corresponding indexed data array
             2nd value is the first transitioning point in the corresponding indexed data array
             3rd value is the first off data point in the corresponding indexed data array
@@ -47,16 +47,14 @@ class Radio_File:
             self.logger.info(f"FITS file loaded.")
         except Exception as e:
             self.logger.error(f"Error reading FITS file: {e}")
-            raise MyException(f"Error reading FITS file: {e}")
 
         self.validated_header = False
         self.validated_data = False
 
-        self.gain_calibrated = []
         self.flux_calibrated = []
 
         self.labels = []
-        self.data_indicies = []
+        self.data_indices = []
         self.gain_start = []
         self.gain_end = []
 
