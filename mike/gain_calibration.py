@@ -15,6 +15,8 @@ from file_init import Radio_File
 from sort import Sort
 from utils import sdfits_to_array
 from val import Val
+from file_exception import MyException
+
 
 
 class Gain_Cal:
@@ -92,7 +94,7 @@ class Gain_Cal:
             m_sd = np.sqrt(sigma / np.sum((x - np.mean(x)) ** 2))
             b_sd = np.sqrt(sigma * ((1 / len(x)) + ((np.mean(x) ** 2) / np.sum((x - np.mean(x)) ** 2))))
             uncertainties = (b_sd, m_sd)
-            #print(rcr_uncertainty, uncertainties)
+
             return best_fit_parameters, uncertainties
 
         else:
@@ -151,72 +153,14 @@ class Gain_Cal:
                 time = (cal_on_array[0][0] + cal_off_array[0][-1]) / 2
             elif time > (cal_on_array[0][-1] + cal_off_array[0][0]) / 2:
                 time = (cal_on_array[0][-1] + cal_off_array[0][0]) / 2
-
-            t_centered = time - np.median(time)
             
-            delta = (cal_on_params[1] * t_centered + cal_on_params[0]) - (cal_off_params[1] * t_centered + cal_off_params[0])
+            delta = np.abs((cal_on_params[1] * (time - np.mean(cal_on_array[0])) + cal_on_params[0]) - (cal_off_params[1] * (time - np.mean(cal_off_array[0])) + cal_off_params[0]))
             
             #Sigma accounting for uncertainty in slope and y intercept from least squares
-            delta_uncertainty = np.sqrt(np.square(cal_on_uncertainties[0]) + np.square(cal_off_uncertainties[0]) + np.square(cal_on_uncertainties[1]) * np.square(t_centered) + np.square(cal_off_uncertainties[1]) * np.square(t_centered))
+            delta_uncertainty = np.sqrt(np.square(cal_on_uncertainties[0]) + np.square(cal_off_uncertainties[0]) + np.square(cal_on_uncertainties[1]) * np.square(time) + np.square(cal_off_uncertainties[1]) * np.square(time))
             
             return delta, time, delta_uncertainty
         
-
-        def plot_delta_fit(cal_on_array, cal_off_array, cal_on_params, cal_on_unc, cal_off_params, cal_off_unc, save_path=None):
-            
-            time = (np.mean(cal_on_array[0]) + np.mean(cal_off_array[0])) / 2
-            if time < (cal_on_array[0][0] + cal_off_array[0][-1]) / 2:
-                time = (cal_on_array[0][0] + cal_off_array[0][-1]) / 2
-            elif time > (cal_on_array[0][-1] + cal_off_array[0][0]) / 2:
-                time = (cal_on_array[0][-1] + cal_off_array[0][0]) / 2
-
-            t_centered = time - np.mean(time)
-            
-            # Extract time and signal
-            t_on, y_on = cal_on_array
-            t_off, y_off = cal_off_array
-            t_on_center = t_on - np.mean(t_on)
-            t_off_center = t_off - np.mean(t_off)
-           
-            #Create a time range covering both
-            t_min = min(t_on_center.min(), t_off_center.min())
-            t_max = max(t_on_center.max(), t_off_center.max())
-            t_range = np.linspace(t_min, t_max, 500)
-            t_range_on = np.linspace(t_on_center.min(), t_on_center.max(), 300)
-            t_range_off = np.linspace(t_off_center.min(), t_off_center.max(), 300) 
-            
-            
-            # Max and min delta lines
-
-            # Fit lines over restricted ranges
-            fit_on = cal_on_params[1] * t_range + cal_on_params[0]
-            fit_on_max = (cal_on_params[1] + cal_on_unc[1]) * t_range + (cal_on_params[0] + cal_on_unc[0])
-            fit_on_min = (cal_on_params[1] - cal_on_unc[1]) * t_range + (cal_on_params[0] - cal_on_unc[0])
-
-            fit_off = cal_off_params[1] * t_range + cal_off_params[0]
-            fit_off_max = (cal_off_params[1] + cal_off_unc[1]) * t_range + (cal_off_params[0] + cal_off_unc[0])
-            fit_off_min = (cal_off_params[1] - cal_off_unc[1]) * t_range + (cal_off_params[0] - cal_off_unc[0])
-
-            # Plot
-            fig, ax = plt.subplots(figsize=(10, 6))
-            #ax.scatter(t_on, y_on, color='blue', label='CAL ON')
-            #ax.scatter(t_off, y_off, color='red', label='CAL OFF')
-            ax.plot(t_range, fit_on, color='blue', label='Fit ON')
-            ax.plot(t_range, fit_off, color='red', label='Fit OFF')
-            ax.plot(t_range, fit_on_max , color='purple', linestyle='--', label='Fit On Max')
-            ax.plot(t_range, fit_on_min , color='purple', linestyle='--', label='Fit On Min')
-            ax.plot(t_range, fit_off_max , color='pink', linestyle='--', label='Fit Off Max')
-            ax.plot(t_range, fit_off_min , color='pink', linestyle='--', label='Fit Off Min')
-            ax.set_xlabel('Time')
-            ax.set_ylabel('Signal')
-            ax.set_title('CAL ON/OFF with Fit Lines and Delta Bounds')
-            ax.legend()
-            ax.grid(True)
-           
-            if save_path:
-                full_dir = os.path.dirname(os.path.abspath(save_path))
-                os.makedirs(full_dir, exist_ok=True)
-                plt.savefig(save_path)
                         
         for ind, i in enumerate(self.file.data):
             subset_data = self.file.data[ind]
@@ -227,10 +171,14 @@ class Gain_Cal:
                     (subset_data["SWPVALID"] == 0)
                 ]
                 
-                delta1, t1, sigma1 = get_delta(pre_cal)
-                
-                self.file.gain_start.append([delta1, t1, sigma1])
-                #plot_delta_fit(calon1, caloff1, calonpara1, calonunc1, caloffpara1, caloffunc1, save_path = os.path.abspath(f"./plots/delta_plot__precal{ind}.png"))
+                #Check if there are enough data points for calibration
+                if len(pre_cal) < 3:
+                    self.file.gain_start.append(None)
+                    raise MyException(f"Pre calibration data for channel {ind} does not have enough points for calibration.")
+                    
+                else:
+                    delta1, t1, sigma1 = get_delta(pre_cal)
+                    self.file.gain_start.append([delta1, t1, sigma1])
             except:
                 self.file.gain_start.append(None)
 
@@ -239,9 +187,14 @@ class Gain_Cal:
                     (np.arange(len(subset_data)) >= subset_indicies[-1]) &
                     (subset_data["SWPVALID"] == 0)
                 ]
-                delta2, t2, sigma2 = get_delta(post_cal)
-                self.file.gain_end.append([delta2, t2, sigma2])
-                #plot_delta_fit(calon2, caloff2, calonpara2, calonunc2, caloffpara2, caloffunc2, save_path = os.path.abspath(f"./plots/delta_plot__postcal{ind}.png")
+                #Check if there are enough data points for calibration
+                if len(post_cal) < 3:
+                    self.file.gain_end.append(None)
+                    raise MyException(f"Post calibration data for channel {ind} does not have enough points for calibration.")
+                       
+                else:
+                    delta2, t2, sigma2 = get_delta(post_cal)
+                    self.file.gain_end.append([delta2, t2, sigma2])
 
             except:
                 self.file.gain_end.append(None)
@@ -374,7 +327,6 @@ if __name__ == "__main__":
     s = Sort(file)
     s.sort()
 
-    c = Cal(file)
     #c.compute_gain_deltas()
 
     g = Gain_Cal(file)
