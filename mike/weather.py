@@ -80,8 +80,8 @@ class Weather:
         max_transmission = float('-inf')
 
         for ind1, i in enumerate(self.file.data):
-            subset_indicies = self.file.data_indicies[ind1]
-            subset_data = i[subset_indicies[0]:subset_indicies[-1]]
+            subset_indices = self.file.data_indices[ind1]
+            subset_data = i[subset_indices[0]:subset_indices[-1]]
 
             P = np.median(subset_data['PRESSURE'] * 1.33322) 
             T = np.median(subset_data['TAMBIENT'] + 273.15)

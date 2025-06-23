@@ -30,7 +30,7 @@ class Spectrum:
         # Go through each channel in the data
         for ind, i in enumerate(self.file.data):
             # Only get actual data, not the calibration data
-            data = self.file.data[ind][self.file.data_indicies[ind][0]:self.file.data_indicies[ind][-1]]
+            data = self.file.data[ind][self.file.data_indices[ind][0]:self.file.data_indices[ind][-1]]
 
             # Get the summed intensities for each frequency
             result = average(data, 0)
@@ -52,7 +52,7 @@ if __name__ == "__main__":
     '''
     Test function to implement calibration.
     '''
-    keep_indicies = [[1300, 1400], [1406, 1410], [1412, 1420]]  # Specify the indicies you want to keep
+    keep_indices = [[1300, 1400], [1406, 1410], [1412, 1420]]  # Specify the indices you want to keep
     feed= [1]  # Specify the feeds you want to keep
     fits_path = "TrackingHighRes/0136484.fits"
     file = Radio_File(fits_path)
@@ -69,17 +69,15 @@ if __name__ == "__main__":
     spec = Spectrum(file)
     spec.make_spec()
 
-    if keep_indicies != []:
+    if keep_indices != []:
         child = Radio_Child_File(file)
         sortchild = Sort(child)
         specchild = Spectrum(child)
 
-        sortchild.user_cuts(keep_indicies, "spectrum", "cut", feed)
-        specchild.make_spec(keep_indicies, feed)
+        sortchild.user_cuts(keep_indices, "spectrum", "cut", feed)
+        specchild.make_spec(keep_indices, feed)
         print(file.data[0]["DATA"].shape)
         print(child.data[0]["DATA"].shape)
 
     c = Gain_Cal(file)
     c.compute_gain_deltas()
-
-

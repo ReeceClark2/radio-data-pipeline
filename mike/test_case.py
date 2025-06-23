@@ -15,8 +15,7 @@ from weather import Weather
 
 
 if __name__ == "__main__":
-    file = Radio_File("EpicONoFFHiRes/0135418.fits")
-    cal_file = Radio_File("EpicONoFFHiRes/0135418.fits")
+    file = Radio_File("C:/Users/starb/Downloads/0136379.fits")
 
     v = Val(file)
     v.validate_primary_header()
@@ -31,18 +30,15 @@ if __name__ == "__main__":
     gc = Gain_Cal(file)
     gc.gain_cal()
 
-    v = Val(cal_file)
-    v.validate_primary_header()
-    v.validate_data()
+    # v = Val(cal_file)
+    # v.validate_primary_header()
+    # v.validate_data()
 
-    s = Sort(cal_file)
-    s.sort()
+    # s = Sort(cal_file)
+    # s.sort()
 
-    w = Weather(cal_file)
-    w.weather_correction()
-
-    gc = Gain_Cal(cal_file)
-    gc.gain_cal()   
+    # w = Weather(cal_file)
+    # w.weather_correction()
 
     # fc = Flux_Cal(file, cal_file)
     # fc.flux_cal()
@@ -50,45 +46,47 @@ if __name__ == "__main__":
     spec = Spectrum(file)
     spec.make_spec()
 
-    print('done')
+    for entry in file.logger.get_log_entries():
+        print(f"{entry['level']}: {entry['message']}")
 
-    # fig, axs = plt.subplots(2, 2, figsize=(12, 8))
 
-    # # Plot first two spectra (top-left)
-    # for i in range(2):
-    #     x, y = file.spectrum[i]
-    #     axs[0, 0].plot(x, y, label=file.labels[i], linewidth=0.5)
-    # axs[0, 0].set_xlabel('Frequency (MHz)')
-    # axs[0, 0].set_ylabel('Intensity')
-    # axs[0, 0].set_title('Spectra 1 & 2')
-    # axs[0, 0].legend()
+    fig, axs = plt.subplots(2, 2, figsize=(12, 8))
 
-    # # Plot last two spectra (bottom-left)
-    # for i in range(2, 4):
-    #     x, y = file.spectrum[i]
-    #     axs[1, 0].plot(x, y, label=file.labels[i], linewidth=0.5)
-    # axs[1, 0].set_xlabel('Frequency (MHz)')
-    # axs[1, 0].set_ylabel('Intensity')
-    # axs[1, 0].set_title('Spectra 3 & 4')
-    # axs[1, 0].legend()
+    # Plot first two spectra (top-left)
+    for i in range(2):
+        x, y = file.spectrum[i]
+        axs[0, 0].plot(x, y, label=file.labels[i], linewidth=0.5)
+    axs[0, 0].set_xlabel('Frequency (MHz)')
+    axs[0, 0].set_ylabel('Intensity')
+    axs[0, 0].set_title('Spectra 1 & 2')
+    axs[0, 0].legend()
 
-    # # Plot first two continuum (top-right)
-    # for i in range(2):
-    #     x, y = file.continuum[i]
-    #     axs[0, 1].plot(x, y, label=file.labels[i], linewidth=0.5)
-    # axs[0, 1].set_xlabel('Time (Seconds)')
-    # axs[0, 1].set_ylabel('Intensity (Jy)')
-    # axs[0, 1].set_title('Continuum 1 & 2')
-    # axs[0, 1].legend()
+    # Plot last two spectra (bottom-left)
+    for i in range(2, 4):
+        x, y = file.spectrum[i]
+        axs[1, 0].plot(x, y, label=file.labels[i], linewidth=0.5)
+    axs[1, 0].set_xlabel('Frequency (MHz)')
+    axs[1, 0].set_ylabel('Intensity')
+    axs[1, 0].set_title('Spectra 3 & 4')
+    axs[1, 0].legend()
 
-    # # Plot last two continuum (bottom-right)
-    # for i in range(2, 4):
-    #     x, y = file.continuum[i]
-    #     axs[1, 1].plot(x, y, label=file.labels[i], linewidth=0.5)
-    # axs[1, 1].set_xlabel('Time (Seconds)')
-    # axs[1, 1].set_ylabel('Intensity (Jy)')
-    # axs[1, 1].set_title('Continuum 3 & 4')
-    # axs[1, 1].legend()
+    # Plot first two continuum (top-right)
+    for i in range(2):
+        x, y = file.continuum[i]
+        axs[0, 1].plot(x, y, label=file.labels[i], linewidth=0.5)
+    axs[0, 1].set_xlabel('Time (Seconds)')
+    axs[0, 1].set_ylabel('Intensity (Jy)')
+    axs[0, 1].set_title('Continuum 1 & 2')
+    axs[0, 1].legend()
+
+    # Plot last two continuum (bottom-right)
+    for i in range(2, 4):
+        x, y = file.continuum[i]
+        axs[1, 1].plot(x, y, label=file.labels[i], linewidth=0.5)
+    axs[1, 1].set_xlabel('Time (Seconds)')
+    axs[1, 1].set_ylabel('Intensity (Jy)')
+    axs[1, 1].set_title('Continuum 3 & 4')
+    axs[1, 1].legend()
 
     # file = Radio_File("C:/Users/starb/Downloads/0135383.fits")
     # cal_file = Radio_File("C:/Users/starb/Downloads/0135383.fits")
@@ -163,7 +161,7 @@ if __name__ == "__main__":
     # axs[1, 1].legend()
 
 
-    # plt.tight_layout()
-    # plt.savefig('GB Ours', dpi=400)
+    plt.tight_layout()
+    plt.savefig('GB Ours', dpi=400)
 
 

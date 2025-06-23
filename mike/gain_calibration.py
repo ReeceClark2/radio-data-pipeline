@@ -64,50 +64,15 @@ class Gain_Cal:
         x = array[0]
         y = array[1]
 
-        if len(x) > 1 and len(y) > 1:
-            result = linregress(x, y)
-            m = result.slope
-            b = result.intercept
-            guess = [m, b]
-            error_y = np.full(len(x), 10**-6)
-            model = rcr.FunctionalForm(self.linear,
-                x,
-                y,
-                [self.d_linear_1, self.d_linear_2],
-                guess, error_y = error_y
-            )
-            
-            r = rcr.RCR(rcr.SS_MEDIAN_DL) 
-            r.setParametricModel(model)
-            r.performBulkRejection(y)
-
-            indicies = r.result.indicies
-
-            x = np.array([x[i] for i in indicies])
-            y = np.array([y[i] for i in indicies])
-
-            best_fit_parameters = model.result.parameters
-            best_fit_uncertainties = model.result.parameter_uncertainties    
-            rcr_uncertainty = best_fit_uncertainties
-            
-            sigma = (1 / (len(x) - 2)) * np.sum((y - best_fit_parameters[1] * x - best_fit_parameters[0]) ** 2)
-            m_sd = np.sqrt(sigma / np.sum((x - np.mean(x)) ** 2))
-            b_sd = np.sqrt(sigma * ((1 / len(x)) + ((np.mean(x) ** 2) / np.sum((x - np.mean(x)) ** 2))))
-            uncertainties = (b_sd, m_sd)
-
-            return best_fit_parameters, uncertainties
-
-        else:
-            m = 0
-            b = y[0]
-
+        result = linregress(x, y)
+        m = result.slope
+        b = result.intercept
         guess = [m, b]
-        error_y = np.full(len(x), 10**-6)
         model = rcr.FunctionalForm(self.linear,
             x,
             y,
             [self.d_linear_1, self.d_linear_2],
-            guess , error_y = error_y
+            guess
         )
         
         r = rcr.RCR(rcr.SS_MEDIAN_DL) 
@@ -116,18 +81,19 @@ class Gain_Cal:
 
         indices = r.result.indices
 
-        x = np.array([x[i] for i in indicies])
-        y = np.array([y[i] for i in indicies])
+        x = np.array([x[i] for i in indices])
+        y = np.array([y[i] for i in indices])
 
         best_fit_parameters = model.result.parameters
-        sigma = (1 / (len(x) - 2)) * np.sum((y - best_fit_parameters[1][0] * x - best_fit_parameters[0][0]) ** 2)
+        
+        sigma = (1 / (len(x) - 2)) * np.sum((y - best_fit_parameters[1] * x - best_fit_parameters[0]) ** 2)
         m_sd = np.sqrt(sigma / np.sum((x - np.mean(x)) ** 2))
         b_sd = np.sqrt(sigma * ((1 / len(x)) + ((np.mean(x) ** 2) / np.sum((x - np.mean(x)) ** 2))))
         uncertainties = (b_sd, m_sd)
-        
-        return best_fit_parameters, uncertainties
-    
 
+        return best_fit_parameters, uncertainties
+
+        
     def compute_gain_deltas(self):
         '''
         Compute gain deltas with pre calibration and post calibration.
@@ -137,8 +103,12 @@ class Gain_Cal:
         ind: index of channel being processed
         '''
         def get_delta(cal):
-            t0 = Time(self.header["DATE"], format="isot")
-            cal_on_array = sdfits_to_array(cal[cal["CALSTATE"] == 1], t0)
+            t0 = Time(self.file.header["DATE"], format="isot")
+            if len(cal[cal["CALSTATE"] == 0]):
+                cal_on_array = sdfits_to_array(cal[cal["CALSTATE"] == 1], t0)
+            else:
+                return None
+
             cal_on_params, cal_on_uncertainties = self.rcr(cal_on_array)
             
             if len(cal[cal["CALSTATE"] == 0]):
@@ -162,43 +132,39 @@ class Gain_Cal:
             return delta, time, delta_uncertainty
         
                         
-        for ind, i in enumerate(self.file.data):
-            subset_data = self.file.data[ind]
-            subset_indicies = self.file.data_indicies[ind]
-            try:
-                pre_cal = subset_data[
-                    (np.arange(len(subset_data)) < subset_indicies[0]) &
-                    (subset_data["SWPVALID"] == 0)
-                ]
-                
-                #Check if there are enough data points for calibration
-                if len(pre_cal) < 3:
-                    self.file.gain_start.append(None)
-                    raise MyException(f"Pre calibration data for channel {ind} does not have enough points for calibration.")
-                    
-                else:
+        for ind, subset_data in enumerate(self.file.data):
+            subset_indices = self.file.data_indices[ind]
+            pre_cal = subset_data[
+                (np.arange(len(subset_data)) < subset_indices[0]) &
+                (subset_data["SWPVALID"] == 0)
+            ]
+            
+            #Check if there are enough data points for calibration
+            if len(pre_cal) < 3:
+                self.file.gain_start.append(None)
+                self.file.logger.warning(f"Pre calibration data for channel {ind} does not have enough points for calibration.")                    
+            else:
+                try:
                     delta1, t1, sigma1 = get_delta(pre_cal)
                     self.file.gain_start.append([delta1, t1, sigma1])
-            except:
-                self.file.gain_start.append(None)
+                except:
+                    self.file.gain_start.append(None)
 
-            try:
-                post_cal = subset_data[
-                    (np.arange(len(subset_data)) >= subset_indicies[-1]) &
-                    (subset_data["SWPVALID"] == 0)
-                ]
-                #Check if there are enough data points for calibration
-                if len(post_cal) < 3:
-                    self.file.gain_end.append(None)
-                    raise MyException(f"Post calibration data for channel {ind} does not have enough points for calibration.")
-                       
-                else:
+
+            post_cal = subset_data[
+                (np.arange(len(subset_data)) >= subset_indices[-1]) &
+                (subset_data["SWPVALID"] == 0)
+            ]
+            #Check if there are enough data points for calibration
+            if len(post_cal) < 3:
+                self.file.gain_end.append(None)
+                self.file.logger.warning(f"Post calibration data for channel {ind} does not have enough points for calibration.")
+            else:
+                try:
                     delta2, t2, sigma2 = get_delta(post_cal)
                     self.file.gain_end.append([delta2, t2, sigma2])
-
-            except:
-                self.file.gain_end.append(None)
-
+                except:
+                    self.file.gain_end.append(None)
 
         return
 
@@ -215,9 +181,10 @@ class Gain_Cal:
         t0 = Time(self.file.header["DATE"], format='isot')
         # Go through each data channel and calibrate the heights
         
-        for ind, i in enumerate(self.file.data):
+        for ind, _ in enumerate(self.file.data):
             feednum = np.unique(self.file.data[ind]["IFNUM"])[0]
             pol = np.unique(self.file.data[ind]["PLNUM"])[0]
+
             if feeds is not None and feednum not in feeds:
                 continue  
 
@@ -241,23 +208,23 @@ class Gain_Cal:
                 data = sdfits_to_array(data, t0)
 
                 # For the time array in the data find the calibrated height for each intensity
-                #If z_value is below 0.6745 average the cal heights, otherwise interpolate between them
+                # If z_value is below 0.6745 average the cal heights, otherwise interpolate between them
                 if z_value < 0.6745:
-
-                    for ind, i in enumerate(data[0]):
-                        delta = (delta1 + delta2) / 2
-                        # Add each calibration height to the calib_height list
-                        data[1][ind] = (data[1][ind] / delta)
+                    delta = (delta1 + delta2) / 2
+                    # Add each calibration height to the calib_height list
+                    data[1] = (data[1] / delta)
+                    self.file.logger.info(f"Channel {ind} gain calibrated using average between pre and post calibration.")
 
                 else:
-                    for ind, i in enumerate(data[0]):
+                    for ind, _ in enumerate(data[0]):
                         delta = delta1 + (delta2 - delta1) * (data[0][ind] - time1) / (time2 - time1)
                         
                         # Add each calibration height to the calib_height list
                         data[1][ind] = (data[1][ind] / delta)
+                    self.file.logger.info(f"Channel {ind} gain calibrated using interpolation between pre and post calibration.")
                 
-                calib_height_data = data
-                self.file.gain_calibrated.append(ind)
+                self.file.continuum[ind] = data
+                
                 
             # If gain_start is None and gain_end is not None, use gain_end for calibration
             elif self.file.gain_start[ind] is None and self.file.gain_end[ind] is not None:
@@ -266,9 +233,9 @@ class Gain_Cal:
                 data = self.file.data[ind]
                 data = sdfits_to_array(data, t0)
 
-                temp = data[1] / delta
-                calib_height_data = [data[0], temp]
-                self.file.gain_calibrated.append(ind)
+                data[1] /= delta
+                self.file.continuum[ind] = data
+                self.file.logger.info(f"Channel {ind} gain calibrated using post calibration only.")
 
             # If gain_start is present but gain_end is not, use gain_start for calibration
             elif self.file.gain_start[ind] is not None and self.file.gain_end[ind] is None:
@@ -277,30 +244,22 @@ class Gain_Cal:
                 data = self.file.data[ind]
                 data = sdfits_to_array(data, t0)
 
-                data[1] = data[1] / delta
-                calib_height_data = data
-                self.file.gain_calibrated.append(ind)
+                data[1] /= delta
+                self.file.continuum[ind] = data
+                self.file.logger.info(f"Channel {ind} gain calibrated using pre calibration only.")
 
             # If gain_start is present but gain_end is not, use gain_start for calibration
             elif self.file.gain_start[ind] is None and self.file.gain_end[ind] is None:
                 data = self.file.data[ind]
                 data = sdfits_to_array(data, t0)
 
-                calib_height_data = data
-
                 # If both gain_start and gain_end are None, just copy the original data
                 # But gotta turn it into a list of time, intensity lists
 
-                self.file.continuum[ind] = (calib_height_data)
-                self.file.gain_calibrated.append(ind)
+                self.file.continuum[ind] = data
+                self.file.logger.warning(f"Channel {ind} not gain calibrated. No pre calibration or post calibration found.")
 
                 continue
-
-            # Add the calibrated height data to continuum
-        
-            self.file.continuum.append(calib_height_data)
-
-        self.file.logger.info(f"Gain calibrated {len(self.file.gain_calibrated)} of {len(self.file.data)} channels.")
 
         return
     
@@ -308,17 +267,14 @@ class Gain_Cal:
     def gain_cal(self):
         self.compute_gain_deltas()
         self.cal_heights()
+
         return
 
 
 if __name__ == "__main__":
     """Test function to implement continuum data handling."""
 
-    keep_times = [[8,12], [1404, 1410], [1412, 1420]]  # Specify the indicies you want to keep
-    feed= [0]  # Specify the feeds you want to keep
-
     file = Radio_File("C://Users//leesnow//Downloads//0136376.fits")
-    data = Gain_Cal(file)
 
     v = Val(file)
     # v.validate_primary_header()
@@ -326,8 +282,6 @@ if __name__ == "__main__":
 
     s = Sort(file)
     s.sort()
-
-    #c.compute_gain_deltas()
 
     g = Gain_Cal(file)
     g.gain_cal()
