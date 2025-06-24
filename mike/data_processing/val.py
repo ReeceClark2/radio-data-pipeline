@@ -158,14 +158,6 @@ class Val:
             3) convert datetime fields to datetime objects
         '''
 
-        # try:
-        #     with fits.open(self.file.file_path) as hdul:
-        #         self.file.dataH = hdul[1].header
-        #         self.file.data = Table(hdul[1].data)
-
-        # except Exception as e:
-        #     raise MyException(f"Error reading data from FITS file: {e}")
-
         self.check_values()
 
         for column in self.file.data.colnames:

@@ -43,3 +43,9 @@ class Log_Collector:
 
     def error(self, msg: str, *args, **kwargs):
         self.logger.error(msg, *args, **kwargs)
+
+    def save(self, filepath: str = "log_output.txt"):
+        if filepath.endswith(".fits"):
+            filepath = filepath[:-5] + "_log.txt"  # remove last 5 chars ('.fits') and add '.txt'
+        with open(filepath, "w") as f:
+            f.write(self.get_log_text())

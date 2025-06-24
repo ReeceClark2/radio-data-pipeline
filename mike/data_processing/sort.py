@@ -45,6 +45,7 @@ class Sort:
                 self.file.labels[int(j + i * len(plnums))] = f'Feed{i + 1}, Channel{j + 1}'
                 
         self.file.data = data
+        self.file.logger.info(f"File successfully split into {len(ifnums) * len(plnums)} channels with {len(plnums)} channels per feed and {len(ifnums)} feed.")
 
         return 
 
@@ -160,15 +161,14 @@ class Sort:
                             continue
 
         channels = len(np.unique([d['PLNUM'] for d in self.file.data]))
-        if channels != len(center):
-            self.logger.error(f"HIRES band not found for 1 or more feeds.")
 
         for c in center:
             start_f = c - (band / 2)
             stop_f = c + (band / 2)
             
-            for _ in range(channels):
+            for i in range(channels):
                 self.file.freqs.append(np.array([start_f, stop_f]))
+                self.file.logger.info(f"Feed {i} found starting frequency {start_f} and ending frequency {stop_f}")
 
     
     def get_startstop_channels(self):
