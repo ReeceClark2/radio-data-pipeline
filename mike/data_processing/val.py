@@ -5,10 +5,11 @@ import warnings
 import numpy as np
 from astropy.table import Column
 from astropy.time import Time
+import pandas as pd
 
 # Local application imports
-from file_exception import MyException
-from file_init import Radio_File
+from .file_exception import MyException
+from .file_init import Radio_File
 
 
 class Val:
@@ -35,6 +36,7 @@ class Val:
         self.validate_header_size()
         self.validate_primary_header_cards()
         self.validate_header_cards()
+        self.validate_file_type()
 
         self.file.validated_header = True
         self.file.logger.info("Header validated successfully.")
@@ -128,7 +130,25 @@ class Val:
             self.file.logger.warning(f"Header missing values: {self.file.missing_values}")
 
         return
+    
 
+    def validate_file_type(self):
+        if self.file.header["OBSMODE"] == "track":
+            self.file.file_type = "track"
+        elif self.file.header["OBSMODE"] == "onoff":
+            self.file.file_type = "onoff"
+        elif self.file.header["OBSMODE"] == "map":
+            self.file.file_type = "map"
+
+            obs_ids = pd.read_csv("calibration_data/cal_obs_ids.csv", header=None).values.flatten()
+
+            file_id = self.file.header["OBSID"]
+            for i in obs_ids:
+                if i == file_id:
+                    self.file.file_type = "cal"
+
+        return
+        
 
     def validate_data(self):
         '''

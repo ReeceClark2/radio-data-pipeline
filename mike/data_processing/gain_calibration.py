@@ -11,11 +11,11 @@ from scipy.stats import linregress
 
 # Local application imports
 import rcr
-from file_init import Radio_File
-from sort import Sort
-from utils import sdfits_to_array
-from val import Val
-from file_exception import MyException
+from .file_init import Radio_File
+from .sort import Sort
+from .utils import sdfits_to_array
+from .val import Val
+from .file_exception import MyException
 
 
 

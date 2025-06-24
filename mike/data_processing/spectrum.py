@@ -2,12 +2,12 @@
 import numpy as np
 
 # Local application imports
-from child_init import Radio_Child_File
-from file_init import Radio_File
-from gain_calibration import Gain_Cal
-from sort import Sort
-from utils import average
-from val import Val
+from .child_init import Radio_Child_File
+from .file_init import Radio_File
+from .gain_calibration import Gain_Cal
+from .sort import Sort
+from .utils import average
+from .val import Val
 
 
 class Spectrum:

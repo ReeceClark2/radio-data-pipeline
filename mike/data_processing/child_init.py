@@ -10,10 +10,10 @@ from astropy.time import Time
 from matplotlib.pyplot import axis
 
 # Local application imports
-from file_exception import MyException
-from file_init import Radio_File
-from utils import average
-from logger import Log_Collector
+from .file_exception import MyException
+from .file_init import Radio_File
+from .utils import average
+from .logger import Log_Collector
 
 
 class Radio_Child_File(Radio_File):

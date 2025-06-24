@@ -3,9 +3,9 @@ import numpy as np
 
 # Local application imports
 import itur
-from file_init import Radio_File
-from sort import Sort
-from val import Val
+from .file_init import Radio_File
+from .sort import Sort
+from .val import Val
 
 
 class Weather:
@@ -79,8 +79,8 @@ class Weather:
         min_transmission = float('inf')
         max_transmission = float('-inf')
 
-        for ind1, i in enumerate(self.file.data):
-            subset_indices = self.file.data_indices[ind1]
+        for ind, i in enumerate(self.file.data):
+            subset_indices = self.file.data_indices[ind]
             subset_data = i[subset_indices[0]:subset_indices[-1]]
 
             P = np.median(subset_data['PRESSURE'] * 1.33322) 
@@ -88,14 +88,14 @@ class Weather:
             rh = np.median(subset_data['HUMIDITY'])   
             theta_rad = np.median(np.radians(subset_data['ELEVATIO']))
 
-            f = np.linspace(self.file.freqs[ind1][0], self.file.freqs[ind1][1], len(subset_data['DATA'][0]))
+            f = np.linspace(self.file.freqs[ind][0], self.file.freqs[ind][1], len(subset_data['DATA'][0]))
             site_elevation = self.file.header['SITEELEV'] / 1000
 
             self.file.logger.info(
-                f"Applied weather correction with "
+                f"Applied weather correction to channel {ind} with "
                 f"P={P:.1f} hPa, T={T:.2f} K, RH={rh:.1f}%, "
                 f"alt={np.degrees(theta_rad):.2f}°, elevation={site_elevation:.2f} km, "
-                f"freqs={self.file.freqs[ind1][0]:.2f}-{self.file.freqs[ind1][1]:.2f} MHz"
+                f"freqs={self.file.freqs[ind][0]:.2f}-{self.file.freqs[ind][1]:.2f} MHz"
             )
 
             A_gas = self.compute_gaseous_attenuation(f, P, T, rh, site_elevation, theta_rad)
@@ -111,7 +111,7 @@ class Weather:
         # Final summary log
         self.file.logger.info(
             f"Transmission range across all channels: "
-            f"{min_transmission:.4f}–{max_transmission:.4f} %"
+            f"{100 * min_transmission:.4f}–{100 * max_transmission:.4f} %"
         )
 
         

@@ -3,7 +3,7 @@ import numpy as np
 from astropy.table import Table
 
 # Local application imports
-from file_init import Radio_File
+from .file_init import Radio_File
 
 
 class Sort:

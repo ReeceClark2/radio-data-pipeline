@@ -3,11 +3,11 @@ import numpy as np
 from astropy.time import Time
 
 # Local application imports
-from file_init import Radio_File
-from gain_calibration import Gain_Cal
-from sort import Sort
-from utils import sdfits_to_array
-from val import Val
+from .file_init import Radio_File
+from .gain_calibration import Gain_Cal
+from .sort import Sort
+from .utils import sdfits_to_array
+from .val import Val
 
 
 class Flux_Cal:

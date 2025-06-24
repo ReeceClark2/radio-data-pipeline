@@ -5,13 +5,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # Local application imports
-from file_init import Radio_File
-from flux_calibration import Flux_Cal
-from gain_calibration import Gain_Cal
-from sort import Sort
-from spectrum import Spectrum
-from val import Val
-from weather import Weather
+from data_processing.file_init import Radio_File
+from data_processing.flux_calibration import Flux_Cal
+from data_processing.gain_calibration import Gain_Cal
+from data_processing.sort import Sort
+from data_processing.spectrum import Spectrum
+from data_processing.val import Val
+from data_processing.weather import Weather
 
 
 if __name__ == "__main__":

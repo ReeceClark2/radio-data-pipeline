@@ -4,8 +4,8 @@ from astropy.io import fits
 from astropy.table import Table
 
 # Local application imports
-from file_exception import MyException
-from logger import Log_Collector
+from .file_exception import MyException
+from .logger import Log_Collector
 
 
 class Radio_File:
@@ -38,6 +38,7 @@ class Radio_File:
         '''
 
         self.file_path = file_path
+        self.file_type = None
         self.logger = Log_Collector(name=f"logger_{file_path}")
 
         try:
