@@ -137,10 +137,8 @@ class Radio_Child_File(Radio_File):
 
             # Get the frequency range for the channel based on the feed
             # if the spectrum field has not been fully populated yet create the frequency range from the original start and stop frequencies
-            frequencies = np.linspace(self.freqs[ind][0], self.freqs[ind][1], len(result))
-
             # Add the frequency and result to the file's spectrum field
-            self.spectrum[ind] = ([np.array(frequencies), np.array(result)])
+            self.spectrum[ind] = ([np.array(self.spectrum[ind][0]), np.array(result)])
         
         return
     
