@@ -7,6 +7,7 @@ from pathlib import Path
 # Third-party libraries
 import numpy as np
 from astropy.io import fits
+import pandas as pd
 
 # Local application imports
 # (Assumes this file lives in the correct package relative to others like Gain_Cal)
@@ -112,6 +113,51 @@ def create_fits_from_txt_folder(input_dir: Path, output_path: Path):
     print(f"[INFO] FITS file written to: {output_path.resolve()}")
 
 
+def parse_output_txt(output_file: Path):
+    """
+    Parse Output.txt into metadata and a photometry DataFrame.
+    
+    Args:
+        output_file (Path): Path to Output.txt
+    
+    Returns:
+        metadata (dict): Key-value pairs of metadata fields
+        photometry_df (pd.DataFrame): Table of photometry results
+    """
+    metadata = {}
+    photometry_lines = []
+    reading_photometry = False
+
+    with output_file.open("r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+
+            # Try to parse metadata section
+            if not reading_photometry:
+                parts = [p.strip() for p in line.split(",")]
+                if len(parts) == 3:
+                    key, value, _ = parts
+                    try:
+                        value = float(value)
+                    except ValueError:
+                        pass
+                    metadata[key] = value
+                else:
+                    # Switch to photometry table
+                    reading_photometry = True
+                    header = line.replace('\t', ' ').split()
+                    continue
+            else:
+                photometry_lines.append(line.replace('\t', ' ').split())
+
+    # Convert photometry to DataFrame
+    photometry_df = pd.DataFrame(photometry_lines, columns=header).apply(pd.to_numeric, errors='ignore')
+
+    return metadata, photometry_df
+
+
 
 if __name__ == "__main__":
     file = "0137018"
@@ -138,4 +184,3 @@ if __name__ == "__main__":
     else:
         output_fits = local_result_dir / f"{file}_output.fits"
         create_fits_from_txt_folder(local_result_dir, output_fits)
-
