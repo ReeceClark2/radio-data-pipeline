@@ -1,1 +1,20 @@
 *.code-workspace
+*.fits
+*.FITS
+*.png
+*.html
+*.gitignore
+*.csv
+*.ecsv
+*.json
+*.pyc
+/mike/cal.py
+/mike/FITSCorrupt.py
+test.py
+Mike.py
+import tkinter.py
+HTMLcrop.py
+Gain_Calibration.py
+mike/__pycache__/cal.cpython-313.pyc
+
+.gitignore
