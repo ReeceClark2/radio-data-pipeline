@@ -11,11 +11,11 @@ from scipy.stats import linregress
 
 # Local application imports
 import rcr
-from file_init import Radio_File
-from sort import Sort
-from utils import sdfits_to_array
-from val import Val
-from file_exception import MyException
+from .file_init import Radio_File
+from .sort import Sort
+from .utils import sdfits_to_array
+from .val import Val
+from .file_exception import MyException
 
 
 
@@ -210,7 +210,10 @@ class Gain_Cal:
                 # For the time array in the data find the calibrated height for each intensity
                 # If z_value is below 0.6745 average the cal heights, otherwise interpolate between them
                 if z_value < 0.6745:
-                    delta = (delta1 + delta2) / 2
+                    #Use weighted average of the pre and post calibration deltas
+                    weights =  np.array([1/sigma1, 1/sigma2])
+                    delta = np.average([delta1, delta2], weights=weights)
+                    
                     # Add each calibration height to the calib_height list
                     data[1] = (data[1] / delta)
                     self.file.logger.info(f"Channel {ind} gain calibrated using average between pre and post calibration.")
