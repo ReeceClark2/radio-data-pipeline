@@ -35,9 +35,9 @@ def run_rc(input_file: str,
         env_vars.update(parameters)
 
     input_basename = Path(input_file).stem
-    container_output_dir = f"/skynet/radio-cartographer/radio-cartographer/{input_basename}_phot"
+    container_output_dir = f"/skynet/radio-cartographer/radio-cartographer/{input_basename}_mod_phot"
 
-    cmd = ["docker", "exec"]
+    cmd = ["docker", "exec", "-w", "/skynet/radio-cartographer/radio-cartographer"]
     for key, value in env_vars.items():
         cmd += ["-e", f"{key}={value}"]
     cmd += [container_name, "bash", script_path]
@@ -158,9 +158,52 @@ def parse_output_txt(output_file: Path):
     return metadata, photometry_df
 
 
+def batch_rc(folder_path, output_csv: Path):
+    folder = Path(folder_path)
+    filenames = [f.stem for f in folder.iterdir() if f.is_file() and f.suffix == '.fits']
+    all_photometry = []
+
+    print('Filenames: ', filenames)
+
+    for filename in filenames:
+        # Run pipeline
+        run_rc(
+            input_file=f"/skynet/radio-cartographer/radio-cartographer/testing/{filename}.fits",
+            parameters={
+                "COORD": "equatorial",
+                "PROCCOORD": "equatorial",
+                "MINFREQ": "1355",
+                "MAXFREQ": "1435",
+                "RECEIVER": "2",
+            }
+        )
+
+        result_dir = Path(f"../results/{filename}_phot")
+        output_txt = result_dir / "Output.txt"
+        print(result_dir)
+        if not output_txt.exists():
+            print(f"[WARNING] Output.txt missing for {filename}, skipping.")
+            continue
+
+        metadata, photometry_df = parse_output_txt(output_txt)
+        photometry_df.insert(0, "ID", filename)  # Tag with FITS ID
+        for k, v in metadata.items():
+            photometry_df[k] = v  # Broadcast metadata as columns
+
+        all_photometry.append(photometry_df)
+        print("Photometry completed for file: ", filename)
+
+    if all_photometry:
+        combined_df = pd.concat(all_photometry, ignore_index=True)
+        combined_df.to_csv(output_csv, index=False)
+        print(f"[INFO] Saved combined CSV to: {output_csv}")
+    else:
+        print("[INFO] No photometry data was processed.")
+    
+
 
 if __name__ == "__main__":
-    file = "0137018"
+    file = "0136988"
     local_result_dir = Path(__file__).resolve().parent.parent / "results" / f"{file}_phot"
 
     # Clean up previous results if they exist
@@ -175,12 +218,18 @@ if __name__ == "__main__":
             parameters={
                 "COORD": "equatorial",
                 "PROCCOORD": "equatorial",
-                "MINFREQ": "1355.0",
-                "MAXFREQ": "1435.0",
+                "MINFREQ": "1414.0625",
+                "MAXFREQ": "1429.6875",
+                "RECEIVER": "1",
             }
         )
 
     # Option B: Just convert .txt output to FITS
-    else:
+    elif False:
         output_fits = local_result_dir / f"{file}_output.fits"
         create_fits_from_txt_folder(local_result_dir, output_fits)
+
+    elif False:
+        input_folder = "..\data\cyg_a_low_hI"
+        output_csv_path = Path(__file__).resolve().parent / "low_hI.csv"
+        batch_rc(input_folder, output_csv_path)

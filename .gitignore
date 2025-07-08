@@ -1,2 +1,3 @@
 *.code-workspace
 radio-data-pipeline/data/
+radio-data-pipeline/results/
