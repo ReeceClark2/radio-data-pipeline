@@ -17,7 +17,7 @@ from data_processing.weather import Weather
 
 if __name__ == "__main__":
     try:
-        files = ["C:/Users/starb/Downloads/0136993.fits", "C:/Users/starb/Downloads/0137023.fits", "C:/Users/starb/Downloads/0137053.fits"]
+        files = ["C:/Users/starb/Downloads/0137022.fits"]
 
         for i in files:
             print(i)
