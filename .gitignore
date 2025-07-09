@@ -1,2 +1,23 @@
-*.code-workspace
-radio-data-pipeline/data/
+# Ignore everything by default
+*
+
+# But don't ignore these directories and their contents
+!radio-data-pipeline/
+!radio-data-pipeline/**
+!tests/
+!tests/**
+
+# Also don't ignore important project files
+!README.md
+!pyproject.toml
+!poetry.lock
+
+# Still ignore these specific file types even in allowed directories
+*.pyc
+__pycache__/
+*.fits
+*.png
+*.jpg
+.venv/
+venv/
+.env
