@@ -23,12 +23,34 @@ def update_obsfreq_in_folder(input_dir: str, output_dir: str, new_obsfreq: float
 
     for file in fits_files:
         with fits.open(file) as hdul:
-            hdul[0].header["OBSFREQ"] = new_obsfreq
-            hdul[0].header["BMAJ"] = np.rad2deg(1.22 * ((3e8 / (new_obsfreq * 1e6)) / 20))
-            hdul[0].header["BMIN"] = np.rad2deg(1.22 * ((3e8 / (new_obsfreq * 1e6)) / 20))
+            print('BEFORE:')
+            print('  OBSFREQ (header):', type(hdul[0].header["OBSFREQ"]), hdul[0].header["OBSFREQ"])
+            print('  BMAJ:', type(hdul[0].header["BMAJ"]), hdul[0].header["BMAJ"])
+            print('  BMIN:', type(hdul[0].header["BMIN"]), hdul[0].header["BMIN"])
+            print('  CRVAL1 (data):', type(hdul[1].data['CRVAL1']), hdul[1].data['CRVAL1'])
+            print('  OBSFREQ (data):', type(hdul[1].data['OBSFREQ']), hdul[1].data['OBSFREQ'])
+            print('  CRVAL1 shape:', hdul[1].data['CRVAL1'].shape)
+
+            hdul[0].header["OBSFREQ"] = float(new_obsfreq)
+            hdul[0].header["BMAJ"] = float(np.rad2deg(1.22 * ((3e8 / (new_obsfreq * 1e6)) / 20)))
+            hdul[0].header["BMIN"] = float(np.rad2deg(1.22 * ((3e8 / (new_obsfreq * 1e6)) / 20)))
+
+            # This loop is unnecessary unless you're doing something per element
+            hdul[1].data['CRVAL1'][:] = new_obsfreq * 1e6
+            hdul[1].data['OBSFREQ'][:] = new_obsfreq * 1e6
+
             output_file = output_path / file.name
             hdul.writeto(output_file, overwrite=True)
+
+            print('AFTER:')
+            print('  OBSFREQ (header):', type(hdul[0].header["OBSFREQ"]), hdul[0].header["OBSFREQ"])
+            print('  BMAJ:', type(hdul[0].header["BMAJ"]), hdul[0].header["BMAJ"])
+            print('  BMIN:', type(hdul[0].header["BMIN"]), hdul[0].header["BMIN"])
+            print('  CRVAL1 (data):', type(hdul[1].data['CRVAL1']), hdul[1].data['CRVAL1'])
+            print('  OBSFREQ (data):', type(hdul[1].data['OBSFREQ']), hdul[1].data['OBSFREQ'])
+            print('  CRVAL1 shape:', hdul[1].data['CRVAL1'].shape)
+
             print(f"[INFO] Updated {file.name} and saved to {output_file}")
 
 
-update_obsfreq_in_folder("C:/Users/starb/OneDrive/Desktop/SUMMER-2025/mike/radio-data-pipeline/data/cyg_a_hi", "C:/Users/starb/OneDrive/Desktop/SUMMER-2025/mike/radio-data-pipeline/data/cyg_a_hi_mod", 1421.875)
+update_obsfreq_in_folder("C:/Users/starb/OneDrive/Desktop/SUMMER-2025/mike/radio-data-pipeline/data/cyg_a_low_hI", "C:/Users/starb/OneDrive/Desktop/SUMMER-2025/mike/radio-data-pipeline/data/cyg_a_low_HI_mod", 1395)

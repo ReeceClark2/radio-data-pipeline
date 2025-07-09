@@ -8,8 +8,8 @@ from astropy.time import Time
 import pandas as pd
 
 # Local application imports
-from .file_exception import MyException
-from .file_init import Radio_File
+from file_exception import MyException
+from file_init import Radio_File
 
 
 class Val:
@@ -322,7 +322,7 @@ if __name__ == "__main__":
     Test function to implement validation.
     '''
 
-    file = Radio_File("C:/Users/starb/Downloads/0136868.fits")
+    file = Radio_File("C:/Users/starb/OneDrive/Desktop/SUMMER-2025/mike/radio-data-pipeline/data/cyg_a_low_hI_mod/0137048.fits")
     v = Val(file)
     v.validate_primary_header()
     v.validate_data()
