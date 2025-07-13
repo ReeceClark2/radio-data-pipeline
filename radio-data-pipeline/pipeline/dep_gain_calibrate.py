@@ -9,6 +9,10 @@ from scipy.stats import linregress
 import rcr
 from collections import defaultdict
 
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+
 
 class Gain_Calibrate:
     def __init__(self, filepath):
@@ -52,16 +56,18 @@ class Gain_Calibrate:
                 data_start_ind = ind
                 pre_cal_complete = True
 
-            if pre_cal_complete and i["SWPVALID"] == 0 and self.data[ind - 1]["SWPVALID"] == 0:
+            if ind > 0 and pre_cal_complete and i["SWPVALID"] == 0 and self.data[ind - 1]["SWPVALID"] == 0:
                 if post_cal_start_ind is None:
-                    post_cal_start_ind = ind
+                    post_cal_start_ind = ind - 1
             else:
                 post_cal_start_ind = None
 
             if pre_cal_complete and i['CALSTATE'] == 0 and i['SWPVALID'] == 1:
                 counter += 1
 
-            if counter <= 3 * channel_count and i['SWPVALID'] == 1:
+            if counter <= 3 * channel_count and i['SWPVALID'] == 0 and data_start_ind:
+                print('counter', data_start_ind)
+                data_start_ind = None
                 pre_cal_complete = False
 
             if pre_cal_complete and i['SWPVALID'] == 0 and i['CALSTATE'] == 1:
@@ -301,8 +307,59 @@ class Gain_Calibrate:
                 print("No calibration found!")
 
         # print(np.median(pre_cal_deltas), np.median(post_cal_deltas))
-        
-        
+        mask = (
+            (self.data['IFNUM'] == 0) &
+            (self.data['PLNUM'] == 0)
+        )
+        subset_data = self.data[mask]
+
+        continuum = []
+        calstate_vals = []
+        swpvalid_vals = []
+
+        for row in subset_data:
+            continuum.append(np.mean(row['DATA']))
+            calstate_vals.append(row['CALSTATE'])
+            swpvalid_vals.append(row['SWPVALID'])
+
+        # X-axis values
+        x_vals = list(range(len(continuum)))
+
+        # Create figure and primary y-axis
+        fig, ax1 = plt.subplots(figsize=(10, 5))
+
+        # Plot continuum
+        ax1.plot(x_vals, continuum, color='black', label='Continuum')
+        ax1.set_xlabel('Index')
+        ax1.set_ylabel('Mean Intensity', color='black')
+        ax1.tick_params(axis='y', labelcolor='black')
+        ax1.set_xlim(0, len(continuum) - 1)
+        ax1.set_ylim(min(continuum), max(continuum))
+
+        # Mark indices
+        ax1.axvline(x=self.indices[0] / 2, color='green', linestyle='--', label='Start Index')
+        ax1.axvline(x=self.indices[1] / 2, color='red', linestyle='--', label='Stop Index')
+
+        # Twin y-axis for CALSTATE and SWPVALID
+        ax2 = ax1.twinx()
+        ax2.step(x_vals, calstate_vals, where='mid', color='blue', label='CALSTATE')
+        ax2.step(x_vals, swpvalid_vals, where='mid', color='orange', label='SWPVALID', linestyle='--')
+        ax2.set_ylabel('CALSTATE / SWPVALID', color='gray')
+        ax2.tick_params(axis='y', labelcolor='gray')
+        ax2.set_ylim(-0.1, 2.1)  # Assuming values 0 or 1
+
+        # Combine legends
+        lines1, labels1 = ax1.get_legend_handles_labels()
+        lines2, labels2 = ax2.get_legend_handles_labels()
+        ax1.legend(lines1 + lines2, labels1 + labels2, loc='upper right')
+
+        plt.tight_layout()
+        plt.savefig('Testing.png', dpi=400)
+        plt.close()
+
+
+
+
 
     def save(self, output_path=None):
         if output_path is None:
@@ -331,7 +388,7 @@ class Gain_Calibrate:
 
 
 if __name__ == "__main__":
-    filepath = "C:/Users/starb/Downloads/0136868.fits"
+    filepath = "C:/Users/starb/Downloads/0136870_validate.fits"
     file = Gain_Calibrate(filepath)
 
     file.gain_calibrate()

@@ -8,6 +8,13 @@ from astropy.time import Time
 from scipy.stats import linregress
 import rcr
 from collections import defaultdict
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
+import numpy as np
+
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 
 
 class Gain_Calibrate:
@@ -23,6 +30,10 @@ class Gain_Calibrate:
             with fits.open(filepath) as hdul:
                 self.header = hdul[0].header
                 self.data = Table(hdul[1].data)
+
+                # Filter to only IFNUM == 0 and PLNUM == 0
+                self.data = self.data[(self.data['IFNUM'] == 0) & (self.data['PLNUM'] == 0)]
+
                 num_points = len(self.data[(self.data['CALSTATE'] == 0) & (self.data['SWPVALID'] == 0)])
                 print(num_points)
             # TODO add logging here
@@ -133,7 +144,7 @@ class Gain_Calibrate:
         return best_fit_parameters, uncertainties
 
 
-    def compute_gain_deltas(self):
+    def compute_gain_deltas(self, window):
         ifnums = np.unique(self.data['IFNUM'])
         plnums = np.unique(self.data['PLNUM'])
 
@@ -265,7 +276,7 @@ class Gain_Calibrate:
                         continue
 
                     # Use 2 deltas on each side, ignoring None
-                    def average_neighbors(values, index, window=0):
+                    def average_neighbors(values, index, window=window):
                         if window == 0:
                             return values[index] if values[index] is not None else None
                         neighbors = [
@@ -300,16 +311,86 @@ class Gain_Calibrate:
                 # Convert to 2D array with shape (N, 2)
                 deltas = np.column_stack((pre_cal_deltas, post_cal_deltas))
 
-                # # Save to CSV with header
-                # np.savetxt("gain_deltas.csv", deltas, delimiter=",", header="PreCalDelta,PostCalDelta", comments='')
-                        
-                # exit()
+                # Use boolean mask to preserve structured array behavior
+                mask = (self.data['IFNUM'] == 0) & (self.data['PLNUM'] == 0)
+                filtered_data = self.data[mask]
 
-            # Now 'intensities' contains the i-th value across all rows
+                # Compute spectrum over time (average across rows)
+                spectrum = np.mean(filtered_data['DATA'], axis=0)
+                ch_indices = np.arange(len(spectrum))
+                delta_diff = abs(np.array(pre_cal_deltas) - np.array(post_cal_deltas))
+                self._pre_cal_deltas = pre_cal_deltas
+                self._post_cal_deltas = post_cal_deltas
 
 
 
-    # def 
+
+
+    def animate_gain_deltas(self, obj, window_range=(5, 105, 10), output_file="gain_deltas_window_scan.mp4"):
+        """
+        Animate the effect of different window sizes on gain delta smoothing.
+
+        Parameters:
+            obj: an instance of the class containing `compute_gain_deltas(window)`
+            window_range: tuple (start, stop, step) for the smoothing window size
+            output_file: filename for the output animation
+        """
+
+        # Store figures for reuse in animation
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
+
+        def update(frame_window):
+            print(f"[INFO] Processing window = {frame_window}")
+            ax1.clear()
+            ax2.clear()
+
+            # Call compute_gain_deltas with the current window
+            try:
+                obj.compute_gain_deltas(window=frame_window)
+            except Exception as e:
+                print(f"[ERROR] Failed at window={frame_window}: {type(e).__name__}: {e}")
+
+            # Structured array filtering
+            mask = (obj.data['IFNUM'] == 0) & (obj.data['PLNUM'] == 0)
+            filtered_data = obj.data[mask]
+
+            # Plot 1: Mean Spectrum
+            spectrum = np.mean(filtered_data['DATA'], axis=0)
+            ch_indices = np.arange(len(spectrum))
+            ax1.plot(ch_indices, spectrum, color='black')
+            ax1.set_ylim(0, 300)
+            ax1.set_xlabel("Channel Index")
+            ax1.set_ylabel("Mean Intensity")
+            ax1.set_title(f"Mean Spectrum\nWindow={frame_window}")
+            ax1.grid(True)
+
+            # Plot 2: Delta Curve
+            pre_deltas = obj._pre_cal_deltas  # Assume you store them as attributes
+            post_deltas = obj._post_cal_deltas
+            delta_diff = abs(np.array(pre_deltas) - np.array(post_deltas))
+
+            ax2.plot(ch_indices, pre_deltas, label="Pre-Cal", color='blue', alpha=0.6, linewidth=0.4)
+            ax2.plot(ch_indices, post_deltas, label="Post-Cal", color='orange', alpha=0.6, linewidth=0.4)
+            ax2.plot(ch_indices, delta_diff, label="|Pre - Post|", color='red', alpha=0.8, linewidth=0.4)
+            ax2.set_xlabel("Channel Index")
+            ax2.set_ylabel("Delta")
+            ax2.set_title("Calibration Deltas")
+            ax2.legend()
+            ax2.grid(True)
+
+            ax1.relim()
+            ax1.autoscale_view()
+
+            ax2.relim()
+            ax2.autoscale_view()
+            
+
+        # Create list of window sizes
+        window_sizes = list(range(*window_range))
+
+        ani = animation.FuncAnimation(fig, update, frames=window_sizes, repeat=False)
+        ani.save(output_file, writer='ffmpeg', dpi=200)
+        plt.close()
 
 
 
@@ -332,10 +413,9 @@ class Gain_Calibrate:
                
 
     def gain_calibrate(self):
-        self.find_calibrations()
-        self.compute_gain_deltas()
-        
-        self.save()
+        self.find_calibrations()    
+        # self.compute_gain_deltas()
+        self.animate_gain_deltas(self, window_range=(5, 105, 10), output_file="deltas_vs_window.mp4")
 
 
 
