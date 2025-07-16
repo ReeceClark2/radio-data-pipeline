@@ -1,6 +1,10 @@
 # Standard library
 import os
+import sys
 import time
+
+# Add the parent directory to Python path so we can import data_processing
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Third-party libraries
 import matplotlib
@@ -88,7 +92,7 @@ if __name__ == "__main__":
 
 
     fig, axs = plt.subplots(2, 2, figsize=(12, 8))
-    file_path = "C:/Users/starb/Downloads/0136379.fits"
+    file_path = "EpicONoFFHiRes/0135418.fits"
     file = Radio_File(file_path)
     # cal_file = Radio_File("TrackingHighRes/0136483.fits")
 
@@ -124,11 +128,11 @@ if __name__ == "__main__":
     spec = Spectrum(file)
     spec.make_spec()
 
-    keep_indices = [[7,13], [15,21]]  # Specify the indices you want to keep
+    keep_indices = [[7,12]]  # Specify the indices you want to keep
     feed= [0, 1]  # Specify the feeds you want to keep
     if keep_indices != []:
-        child = Radio_Child_File(file, file_path, keep_indices, "continuum", "cut", feed)
-        child.user_cuts([[1300, 1400], [1402, 1404], [1412, 1420]], "spectrum", "keep", feed)
+        child = Radio_Child_File(file, file_path, keep_indices, "continuum", "keep", feed)
+        child.user_cuts([[1300, 1400], [1402, 1404], [1412, 1420]], "spectrum", "cut", feed)
         child.make_spec()
         print('hi')
         gcChild = Gain_Cal(child)
@@ -177,7 +181,7 @@ if __name__ == "__main__":
     axs[1, 1].legend()
 
     plt.tight_layout()
-    plt.savefig('GB Ours2', dpi=400)
-    print("Plot saved as 'GB Ours2.png'")
+    plt.savefig('GB Ours1.png', dpi=400)
+    print("Plot saved as 'GB Ours1.png'")
 
 

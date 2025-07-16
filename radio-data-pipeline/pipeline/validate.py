@@ -43,7 +43,7 @@ class Val:
             # TODO add handling here for endianness
             pass
 
-        naxis = self.file.header.get('NAXIS')
+        naxis = self.header.get('NAXIS')
         for i in range(1, naxis + 1):
             axis_key = f"NAXIS{i}"
             if axis_key not in self.header:
@@ -106,7 +106,7 @@ class Val:
 
 
     def check_values(self):
-        data_array = np.ma.array(self.file.data['DATA'])
+        data_array = np.ma.array(self.data['DATA'])
 
         mask = np.isnan(data_array)
         if np.any(mask):
@@ -136,7 +136,7 @@ class Val:
             # TODO add logging to state "column has mixed data types in X field"
 
         else:
-            common_type = unique_types[0]
+            common_type = next(iter(unique_types))  # ✅ This works
             try:
                 if common_type is str:
                     if column_data_array.dtype.char == 'S':
@@ -165,7 +165,7 @@ class Val:
     def convert_to_datetime(self, column):
         column_data_array = self.data[column]
 
-        if any(keyword in column.upper() for keyword in ["DATE", "TIME"]) or column.upper() == "LST":
+        if any(keyword in column.upper() for keyword in ["TIME"]) or column.upper() == "LST":
             try:
                 # Try converting with astropy Time
                 type = column_data_array.dtype.type
@@ -190,8 +190,8 @@ class Val:
                         # TODO add logging for all methods failed to convert to datetime
                         pass
 
-        
-        if any(keyword in column.upper() for keyword in ['DURATION', 'EXPOSURE', 'MJD', 'UTC', 'UTSECS']) or column.upper() == 'LST':
+
+        if any(keyword in column.upper() for keyword in ['DATE', 'TIME', 'DURATION', 'EXPOSURE', 'MJD', 'UTC', 'UTSECS']) or column.upper() == 'LST':
             try:
                 self.data[column] = Column(column_data_array.astype(float), dtype='f8')
             except ValueError:
@@ -331,3 +331,8 @@ class Val:
         self.save()
 
         # self.find_calibrations() --> this can be done as part of gain calibration
+
+if __name__ == "__main__":
+    filepath = "EpicONoFFHiRes/0135417_validate.fits"
+    val = Val(filepath)
+    val.validate_primary_header()
