@@ -18,6 +18,7 @@ __pycache__/
 *.fits
 *.png
 *.jpg
+*.csv
 .venv/
 venv/
 .env
