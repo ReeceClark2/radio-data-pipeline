@@ -7,11 +7,6 @@ from scipy.stats import linregress
 import re
 import rcr
 
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
-import time
-
 class RadioTrackingContinuum:
     def __init__(self, file_path: str, ifnum, plnum, including_frequency_ranges, excluding_frequency_ranges, including_time_ranges, excluding_time_ranges):
         self.filepath = file_path
