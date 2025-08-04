@@ -1,0 +1,15 @@
+# Also don't ignore important project files
+!README.md
+!pyproject.toml
+!poetry.lock
+
+# Still ignore these specific file types even in allowed directories
+*.pyc
+__pycache__/
+*.fits
+*.png
+*.jpg
+*.csv
+.venv/
+venv/
+.env

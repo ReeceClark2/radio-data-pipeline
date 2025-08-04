@@ -1,0 +1,83 @@
+class Gain_Calibrate:
+    def __init__(self, filepath):
+        self.filepath = filepath
+        self.indices = None
+        self.data_subsets = None
+
+        self.gain_start = None
+        self.gain_end = None
+
+        try:
+            with fits.open(filepath) as hdul:
+                self.header = hdul[0].header
+                self.data = Table(hdul[1].data)
+
+                self.data_start_index = self.header["DATAIND"]
+                self.post_calibration_start_index = self.header["POSTIND"]
+                self.off_start_index = self.header["ONOFFIND"]
+
+                # Filter to only IFNUM == 0 and PLNUM == 0
+                # self.data = self.data[(self.data['IFNUM'] == 0) & (self.data['PLNUM'] == 0)]
+
+            # TODO add logging here
+        except Exception as e:
+            # TODO add logging here
+            pass
+
+
+    def average:
+        
+
+        return # Full continuum times, intensities
+
+
+    def perform_rcr
+
+
+    def get_cal_arrays
+
+        return ([precalon, precaloff], [postcalon, postcaloff])
+
+
+    def (takes channel)            
+        continuum = average(channel)
+        continuum = get cal arrays (continuum)
+        for something in continuum:
+            m,b,unc = perform_rcr(something[0])
+            m,b,unc = perform_rcr(something[1]) # Make these rcrs mask data of bad indices
+
+        # get channel count here 
+        bin_count = 20
+
+        bin_size = channel diff / bin_count
+
+        for i in range(bin_count):
+            bin_continuum = average data[filter for correct bins] 
+            bin_continuum = get cal arrays ( bin_continuum)
+            # perform rcr on this too?
+
+            for something in bin_continuum
+                m,b,unc = preform_rcr(something[0])
+                m,b,unc = preform_rcr(something[1])
+
+                find gain delta 
+
+                apply gain delta to data[filter for correct bins]
+
+                        
+                        
+    def perform_gain_calibration:
+        ifnums = np.unique(self.data['IFNUM'])
+        plnums = np.unique(self.data['PLNUM'])
+    
+        for ifnums
+            for plnums
+
+                    
+
+                
+
+
+    
+
+        
