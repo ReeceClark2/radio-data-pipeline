@@ -266,7 +266,9 @@ class RadioTrackingContinuum:
                 (self.data['SWPVALID'][:self.data_start_index] == 0) 
             ]
 
-            pre_cal_on_array = self.get_continuum(pre_cal_on_mask)
+            pre_cal_on_array= self.get_continuum(pre_cal_on_mask)
+            #center times around 0 
+            pre_cal_on_array[0] = pre_cal_on_array[0] - np.mean(pre_cal_on_array[0])
         except Exception:
             pre_cal_on_array = None
 
@@ -277,6 +279,7 @@ class RadioTrackingContinuum:
             ]
 
             pre_cal_off_array = self.get_continuum(pre_cal_off_mask)
+            pre_cal_off_array[0] = pre_cal_off_array[0] - np.mean(pre_cal_off_array[0])
         except Exception:
             pre_cal_off_array = None
 
@@ -288,6 +291,7 @@ class RadioTrackingContinuum:
             ]
 
             post_cal_on_array = self.get_continuum(post_cal_on_mask)
+            post_cal_on_array[0] = post_cal_on_array[0] - np.mean(post_cal_on_array[0])   
         except Exception:
             post_cal_on_array = None
 
@@ -298,6 +302,7 @@ class RadioTrackingContinuum:
             ]
 
             post_cal_off_array = self.get_continuum(post_cal_off_mask)
+            post_cal_off_array[0] = post_cal_off_array[0] - np.mean(post_cal_off_array[0])
         except Exception:
             post_cal_off_array = None
 
@@ -316,7 +321,7 @@ class RadioTrackingContinuum:
             # For pre and post cal in cal_arrays try to compute the delta
             try:
                 # i[0] is the on array for a calibration spike while i[1] is the off array. i[0][0] are the times of the on array and i[0][1] are the intensities of the on array
-                if i[0][0].size != 0 and i[0][1].size != 0 and i[1][0].size != 0 and i[1][1].size != 0:
+                if i[0][0].size > 3 and i[0][1].size > 3 and i[1][0].size > 3 and i[1][1].size > 3:
                     cal_on_params, on_uncertainty = self.perform_rcr(i[0])
                     cal_off_params, off_uncertainty = self.perform_rcr(i[1])
 
