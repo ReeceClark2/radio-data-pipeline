@@ -267,8 +267,6 @@ class RadioTrackingContinuum:
             ]
 
             pre_cal_on_array= self.get_continuum(pre_cal_on_mask)
-            #center times around 0 
-            pre_cal_on_array[0] = pre_cal_on_array[0] - np.mean(pre_cal_on_array[0])
         except Exception:
             pre_cal_on_array = None
 
@@ -279,7 +277,6 @@ class RadioTrackingContinuum:
             ]
 
             pre_cal_off_array = self.get_continuum(pre_cal_off_mask)
-            pre_cal_off_array[0] = pre_cal_off_array[0] - np.mean(pre_cal_off_array[0])
         except Exception:
             pre_cal_off_array = None
 
@@ -291,7 +288,6 @@ class RadioTrackingContinuum:
             ]
 
             post_cal_on_array = self.get_continuum(post_cal_on_mask)
-            post_cal_on_array[0] = post_cal_on_array[0] - np.mean(post_cal_on_array[0])   
         except Exception:
             post_cal_on_array = None
 
@@ -302,7 +298,6 @@ class RadioTrackingContinuum:
             ]
 
             post_cal_off_array = self.get_continuum(post_cal_off_mask)
-            post_cal_off_array[0] = post_cal_off_array[0] - np.mean(post_cal_off_array[0])
         except Exception:
             post_cal_off_array = None
 
