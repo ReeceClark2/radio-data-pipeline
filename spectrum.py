@@ -1,10 +1,8 @@
 import numpy as np
 from astropy.io import fits
 from astropy.table import Table
-from astropy.time import Time
-import astropy.units as u
 import utils
-import matplotlib.pyplot as plt
+
 
 class Spectrum:
     def __init__(self, file_path: str, ifnum, plnum, including_frequency_ranges, excluding_frequency_ranges, including_time_ranges, excluding_time_ranges):
@@ -70,13 +68,3 @@ if __name__ == "__main__":
 
     s1 = Spectrum(filepath, 0, 1, None, None, None, None)
     spectrum1 = s1.spectrum()
-
-'''
-TODO
-Ok so the main concern is the filtering time ranges. Filtering frequency ranges is solved since rows only need 
-to be cropped within in each time index (hard to explain, but you will remember), but cropping time ranges 
-messes with the calibration located indices. This means the indices must be ascertained after cropping 
-the times and frequencies. This should be straight forward moving the __init__ portion to the main block. 
-Additionally, the interpolation for high z-scores must be implemented and proper error handling for pre- and
-post- calibration blocks.
-'''

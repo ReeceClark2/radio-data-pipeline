@@ -6,7 +6,7 @@ import astropy.units as u
 from scipy.stats import linregress
 import rcr
 import utils
-import matplotlib.pyplot as plt
+
 
 class Continuum:
     def __init__(self, file_path: str, ifnum, plnum, including_frequency_ranges, excluding_frequency_ranges, including_time_ranges, excluding_time_ranges):
@@ -169,6 +169,3 @@ if __name__ == "__main__":
 
     c = Continuum(filepath, 0, 0, None, None, None, None)
     continuum = c.continuum()
-
-    plt.plot(continuum[0], continuum[1])
-    plt.show()
