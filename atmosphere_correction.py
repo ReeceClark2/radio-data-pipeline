@@ -31,11 +31,10 @@ class Atmosphere_Correction:
         # If the temperature is above freezing then use the above freezing equation
         if temperature + 273.15 >= 0:
             # Buck equations require Celsius instead of Kelvin!
-            e_s = 6.1121 * np.exp((17.502 * (temperature - 273.15)) / ((temperature - 273.15) + 240.97)) # TODO add over ice
+            e_s = (1.0007 + (3.46e-6)) * 6.1121 * np.exp((17.502 * (temperature - 273.15)) / ((temperature - 273.15) + 240.97)) 
         # Similary, if the temperature is below freezing then use the below freezing equation
         elif temperature + 273.15 < 0:
-            e_s = 8
-
+            e_s = (1.0003 + (4.18e-6)) * 6.1115 * np.exp((22.452 * (temperature - 273.15)) / ((temperature - 273.15) + 272.55))
         # If this fails then correct for oxygen attenuation lines only
         else:
             return 0
