@@ -22,7 +22,7 @@ class Atmosphere_Correction:
             self.header = hdul[0].header
             self.data = Table(hdul[1].data)    
     
-    def get_water_vapor_density(self, temperature, relative_humidity):
+    def _get_water_vapor_density(self, temperature, relative_humidity):
         '''
         Calculates water vapor density using the Buck equations for freezing and 
         non-freezing conditions.
@@ -44,7 +44,7 @@ class Atmosphere_Correction:
 
         return water_vapor_density
 
-    def gaseous_attenuation_correction(self, frequencies, elevation, water_vapor_density, pressure, temperature):
+    def _gaseous_attenuation_correction(self, frequencies, elevation, water_vapor_density, pressure, temperature):
         '''
         Calculates the transmissions to correct signals for water vapor and 
         oxygen attenuation lines. This uses the International Telecommunication Union's 
@@ -72,9 +72,9 @@ class Atmosphere_Correction:
             temperature = i["TAMBIENT"] + 273.15 # SDFITS provide ambient temperature, so it is converted to Kelvin
             pressure = i["PRESSURE"]
             relative_humidity = i["HUMIDITY"]
-            water_vapor_density = self.get_water_vapor_density(temperature, relative_humidity)
+            water_vapor_density = self._get_water_vapor_density(temperature, relative_humidity)
 
-            gaseous_transmission = self.gaseous_attenuation_correction(frequencies, elevation, water_vapor_density, pressure, temperature)
+            gaseous_transmission = self._gaseous_attenuation_correction(frequencies, elevation, water_vapor_density, pressure, temperature)
 
             # This has been structured to accomodate additional transmission functions like 
             # cloud_attenuation if the appropriate instruments are installed. The transmissions 

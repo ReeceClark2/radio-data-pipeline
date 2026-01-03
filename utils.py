@@ -7,6 +7,11 @@ import numpy as np
 
 
 def parse_history(header):
+    '''
+    SDFITS files contain additional sections with keyword "HISTORY". 
+    This function parses those cards and values.
+    '''
+
     # Find all instances of the HISTORY card in the FITS header
     entries = header.get('HISTORY', [])
     if isinstance(entries, str):
@@ -51,6 +56,10 @@ def parse_history(header):
     return parsed
 
 def get_frequency_range(header, ifnum):
+    '''
+    Find the frequency range for the observation.
+    '''
+
     # Use the parse history function to get dictionary of sub FITS header
     history = parse_history(header)
 
@@ -93,7 +102,11 @@ def get_frequency_range(header, ifnum):
         # TODO add graceful error handling
         raise ValueError(f"Unknown datamode: {datamode}")
     
-def integrate_data(header, data, mode, frequencies=None):
+def integrate_data(header, data, mode):
+    '''
+    Create a continuum or spectrum to return.
+    '''
+
     if mode == "continuum":
         intensities = np.array(data['DATA']) 
         intensities = np.sum(intensities, axis=1)
@@ -224,6 +237,10 @@ def save(filepath, header, data, process, output_path=None):
     hdulist.writeto(output_path, overwrite=True)
 
 def filter_time_ranges(header, data, including_time_ranges, excluding_time_ranges):
+    '''
+    Remove times that are not selected by the observer.
+    '''
+
     # Create time array to be filtered
     t0 = Time(header["DATE"], format="isot")
     dt = Time(data["DATE-OBS"], format="isot") - t0
@@ -254,6 +271,10 @@ def filter_time_ranges(header, data, including_time_ranges, excluding_time_range
     return data
 
 def filter_frequency_ranges(header, data, ifnum, including_frequency_ranges, excluding_frequency_ranges):
+    '''
+    Remove frequencies that are not selected by the observer.
+    '''
+    
     # Get the necessary frequency data
     low_frequency, high_frequency, n_channels = get_frequency_range(header, ifnum)
     

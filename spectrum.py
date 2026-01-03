@@ -6,6 +6,12 @@ import utils
 
 class Spectrum:
     def __init__(self, file_path: str, ifnum, plnum, including_frequency_ranges, excluding_frequency_ranges, including_time_ranges, excluding_time_ranges):
+        '''
+        Initialization function for provided file. Responsible for 
+        opening the SDFITS file's header and data and initializing 
+        necessary params.
+        '''
+        
         self.filepath = file_path
 
         with fits.open(self.filepath) as hdul:
@@ -38,6 +44,11 @@ class Spectrum:
             self.excluding_time_ranges = excluding_time_ranges
             
     def spectrum(self):
+        '''
+        Create the spectrum and crop out unnecessary times and frequencies. Handle
+        ON/OFF files.
+        '''
+
         if self.including_time_ranges or self.excluding_time_ranges:
             self.data = utils.filter_time_ranges(self.header, self.data, self.including_time_ranges, self.excluding_time_ranges)
         if self.including_frequency_ranges or self.excluding_frequency_ranges:

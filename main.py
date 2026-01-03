@@ -9,6 +9,7 @@ from spectrum import Spectrum
 
 import matplotlib.pyplot as plt
 
+
 if __name__ == "__main__":
     # These ranges are specified as a lists of lists such as [[start1, end1],[start2, end2]]
     including_frequency_ranges = None
@@ -18,7 +19,7 @@ if __name__ == "__main__":
 
     start_time = time()
 
-    filepath = "C:/Users/starb/Downloads/0144759.fits"
+    filepath = "C:/Users/starb/Downloads/Raw/0144717daisy_merge.fits"
     root, extension = os.path.splitext(filepath)
 
     v = Validation(filepath)
@@ -33,13 +34,13 @@ if __name__ == "__main__":
     time1 = time()
     print("Atmosphere correction time:", round((time1 - time0),3), " seconds")
 
-    c = Continuum(root + "_validated_corrected" + extension, 0, 0, including_frequency_ranges, excluding_frequency_ranges, including_time_ranges, excluding_time_ranges)
+    c = Continuum(root + "_validated" + extension, 0, 1, including_frequency_ranges, excluding_frequency_ranges, including_time_ranges, excluding_time_ranges)
     continuum = c.continuum()
 
     time2 = time()
     print("Continuum creation time:", round((time2 - time1),3), " seconds")
 
-    s = Spectrum(root + "_validated_corrected" + extension, 0, 0, including_frequency_ranges, excluding_frequency_ranges, including_time_ranges, excluding_time_ranges)
+    s = Spectrum(root + "_validated" + extension, 0, 1, including_frequency_ranges, excluding_frequency_ranges, including_time_ranges, excluding_time_ranges)
     spectrum = s.spectrum()
 
     time3 = time()

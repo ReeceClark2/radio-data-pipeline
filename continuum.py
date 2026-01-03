@@ -1,8 +1,6 @@
 import numpy as np
 from astropy.io import fits
 from astropy.table import Table
-from astropy.time import Time
-import astropy.units as u
 from scipy.stats import linregress
 import rcr
 import utils
@@ -10,6 +8,12 @@ import utils
 
 class Continuum:
     def __init__(self, file_path: str, ifnum, plnum, including_frequency_ranges, excluding_frequency_ranges, including_time_ranges, excluding_time_ranges):
+        '''
+        Initialization function for provided file. Responsible for 
+        opening the SDFITS file's header and data and initializing 
+        necessary params.
+        '''
+
         self.filepath = file_path
 
         with fits.open(self.filepath) as hdul:
@@ -39,7 +43,11 @@ class Continuum:
             self.including_time_ranges = including_time_ranges
             self.excluding_time_ranges = excluding_time_ranges
 
-    def parse_calibration_spike(self, data):
+    def _parse_calibration_spike(self, data):
+        '''
+        Find on and off diode sections.
+        '''
+
         on_mask = data[
             (data['CALSTATE'] == 1) &
             (data['SWPVALID'] == 0) 
@@ -61,7 +69,11 @@ class Continuum:
     def d_linear_2(self, x, params): # second model parameter derivative
         return x
 
-    def perform_rcr(self, array):
+    def _perform_rcr(self, array):
+        '''
+        Perform Robust Chauvenet Rejection (RCR) on the provided array.
+        '''
+
         x = array[0].copy()
         x -= np.average(x)
 
@@ -96,16 +108,20 @@ class Continuum:
 
         return best_fit_parameters, uncertainties
 
-    def calculate_calibration_height(self, calibration):
-        diode_on, diode_off = self.parse_calibration_spike(calibration)
+    def _calculate_calibration_height(self, calibration):
+        '''
+        Perform calibration unit conversion factor calculation.
+        '''
+
+        diode_on, diode_off = self._parse_calibration_spike(calibration)
         
         # Check that on and off sections are greater than 2 points to perform fitting
         if len(diode_on) >= 4 and len(diode_off) >= 4:
             diode_on_array = utils.integrate_data(self.header, diode_on, "continuum")
             diode_off_array = utils.integrate_data(self.header, diode_off, "continuum")
 
-            diode_on_best_fit_parameters, diode_on_uncertainties = self.perform_rcr(diode_on_array)
-            diode_off_best_fit_parameters, diode_off_uncertainties = self.perform_rcr(diode_off_array)
+            diode_on_best_fit_parameters, diode_on_uncertainties = self._perform_rcr(diode_on_array)
+            diode_off_best_fit_parameters, diode_off_uncertainties = self._perform_rcr(diode_off_array)
             
             evaluation_time = (np.average(diode_on_array[0]) + np.average(diode_off_array[0])) / 2
             diode_on_evaluation_time = evaluation_time - np.average(diode_on_array[0])
@@ -122,6 +138,12 @@ class Continuum:
             return None, None
     
     def continuum(self):
+        '''
+        Create the continuum and crop out unnecessary times and frequencies. Perform 
+        gain calibration and flux calibration.
+        '''
+
+        # Filter times and frequencies
         if self.including_time_ranges or self.excluding_time_ranges:
             self.data = utils.filter_time_ranges(self.header, self.data, self.including_time_ranges, self.excluding_time_ranges)
         if self.including_frequency_ranges or self.excluding_frequency_ranges:
@@ -130,6 +152,7 @@ class Continuum:
             frequencies = utils.get_frequency_range(self.header, self.ifnum)
             frequencies = np.linspace(frequencies[1], frequencies[0], frequencies[2])
 
+        # Identify calibration spikes
         data_start_index, post_cal_start_index, off_start_index = utils.find_calibrations(self.header, self.data, self.channel_count)
         self.data_start_index = data_start_index
         self.post_cal_start_index = post_cal_start_index
@@ -141,11 +164,13 @@ class Continuum:
         pre_calibration_intensity = None
         post_calibration_intensity = None
 
-        pre_calibration_intensity, pre_calibration_uncertainty = self.calculate_calibration_height(pre_calibration)
-        post_calibration_intensity, post_calibration_uncertainty = self.calculate_calibration_height(post_calibration)
+        # Calculate calibration heights
+        pre_calibration_intensity, pre_calibration_uncertainty = self._calculate_calibration_height(pre_calibration)
+        post_calibration_intensity, post_calibration_uncertainty = self._calculate_calibration_height(post_calibration)
 
         continuum = utils.integrate_data(self.header, self.data[self.data_start_index:self.post_cal_start_index], "continuum")
         
+        # Perform gain calibration with calibration spikes
         if pre_calibration_intensity and post_calibration_intensity:
             z_score = abs(pre_calibration_intensity - post_calibration_intensity) / np.sqrt(pre_calibration_uncertainty ** 2 + post_calibration_uncertainty ** 2)
 
@@ -160,6 +185,8 @@ class Continuum:
             continuum[1] /= pre_calibration_intensity
         elif post_calibration_intensity:
             continuum[1] /= post_calibration_intensity
+
+        # TODO perform flux calibration
 
         return continuum
 

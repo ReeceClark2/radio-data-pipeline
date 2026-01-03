@@ -22,7 +22,7 @@ class Validation:
             self.header = hdul[0].header
             self.data = Table(hdul[1].data)
 
-    def mask_nan_values(self): # TODO revisit to see if necessary
+    def _mask_nan_values(self): # TODO revisit to see if necessary
         '''
         Masks values of data that are nonphysical to prevent errors.
         '''
@@ -36,7 +36,7 @@ class Validation:
             # Mask values if NaN values exist
             self.data['DATA'].mask = nan_mask
 
-    def validate_time(self):
+    def _validate_time(self):
         '''
         Ensure necessary time keeping parameters function properly.
         '''
@@ -48,7 +48,7 @@ class Validation:
         except Exception as e:
             print("Could not parse observation times!")
 
-    def validate_physical_values(self):
+    def _validate_physical_values(self):
         '''
         Ensure physical values are indeed physical.
         '''
@@ -69,7 +69,7 @@ class Validation:
             except Exception as e:
                 print(f"Nonphysical value detected for {column}!")
 
-    def get_channels(self):
+    def _get_channels(self):
         '''
         SDFITS files are marked with channels not to be used due 
         to poor signal or band-pass roll off. These should be 
@@ -112,16 +112,16 @@ class Validation:
         '''
 
         # Mask nan values
-        self.mask_nan_values()
+        self._mask_nan_values()
 
         # Validate necessary time elements
-        self.validate_time()
+        self._validate_time()
 
         # Validate physical values
-        self.validate_physical_values()
+        self._validate_physical_values()
 
         # Remove poor data channels
-        self.get_channels()
+        self._get_channels()
 
         # Save the new validated file under the original filepath + _validated
         utils.save(self.filepath, self.header, self.data, "validated")
