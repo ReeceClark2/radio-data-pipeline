@@ -150,7 +150,10 @@ class Continuum:
             z_score = abs(pre_calibration_intensity - post_calibration_intensity) / np.sqrt(pre_calibration_uncertainty ** 2 + post_calibration_uncertainty ** 2)
 
             if z_score >= 1.96:
-                pass
+                for ind, i in enumerate(continuum[1]):
+                    time1 = continuum[0][0]
+                    time2 = continuum[0][-1]
+                    i /= pre_calibration_intensity + (post_calibration_intensity - pre_calibration_intensity) * ((continuum[0][ind] - time1) / (time2 - time1))
             else:
                 continuum[1] /= (pre_calibration_intensity + post_calibration_intensity) / 2
         elif pre_calibration_intensity:
