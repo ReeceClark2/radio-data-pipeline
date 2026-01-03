@@ -1,87 +1,77 @@
-This repository serves as the data reduction process for SDFITS files provided to the **Skynet Robotic Telescope Network**. The pipeline is designed to handle **radio tracking**, **ON/OFF**, and **mapping** observations. While integrated into Skynet, access to regularly scheduled calibration observations allows for all returned data to be flux calibrated into **Janskys (Jy)**. The pipeline supports radio astronomy for students, educators, and astronomers! 
+Skynet 2: Radio Data Processing Pipeline
 
----
+This repository serves as the data reduction process for SDFITS files provided to the Skynet Robotic Telescope Network. The pipeline is designed to handle radio tracking, ON/OFF, and mapping observations. While integrated into Skynet, access to regularly scheduled calibration observations allows for all returned data to be flux calibrated into Janskys (Jy).
 
-## Data Processing Pipeline
+The pipeline supports radio astronomy for students, educators, and astronomers through programs like ERIRA, MWU!, and OPIS!.
+
+Pipeline Overview
 
 The processes required to properly handle radio observation data follow a generalized architecture designed to accommodate diverse instrumentation across a global network.
 
-### Validation
+1. Validation
 
-Validation is the first stage of the pipeline. This stage ensures that data is physical and maintains the integrity of the file. The pipeline employs a **Python-based system** that checks for proper formatting (e.g., strings vs. floats) and flags nonphysical values, such as negative temperatures in Kelvin. It also ensures that calibration diode flags (**CALSTATE**) and data collection flags (**SWPVALID**) are present to accurately identify calibration spikes.
+Validation is the first stage of the pipeline. This stage ensures that data is physical and maintains the integrity of the file.
 
-### Atmosphere Correction
+    Formatting: Employs a Python-based pipeline to check data types (e.g., strings, floats).
 
-Skynet employs radio telescopes across the globe with **L-, S-, C-, X-, Ku-, and K-band** receivers. While lower frequency bands are not dramatically attenuated, **X-, Ku-, and K-bands** suffer significant transmission loss due to water vapor and oxygen absorption lines.
+Physicality: Checks for nonphysical values, such as negative temperatures in Kelvin.
 
-* 
-**Modeling**: The pipeline uses **Buck equations** to estimate saturation vapor pressure based on embedded weather data.
+Metadata: Employs an algorithm to identify calibration spikes using the CALSTATE (diode status) and SWPVALID (data validity) flags.
 
+2. Atmosphere Correction
 
-* 
-**Attenuation**: It utilizes the **ITU-R** Python library to calculate power loss (dB) based on water vapor density and frequency, converting this to a transmission fraction inversely applied to observed intensities.
+Skynet employs radio telescopes across the globe with L-, S-, C-, X-, Ku-, and K-band receivers. While lower frequency bands are not dramatically attenuated, higher bands suffer significant transmission loss due to water vapor and oxygen absorption lines.
 
+    Vapor Pressure: Uses Buck equations to estimate saturation vapor pressure for above and below-freezing conditions.
 
-* 
-**User Control**: Observers performing atmospheric science can opt to skip this correction to preserve atmospheric data.
+Attenuation: Utilizes the ITU-R library to calculate power loss in decibels based on water vapor density and frequency.
 
+Correction: The transmission fraction is inversely applied to observed intensities to find unattenuated values.
 
-
-### Gain Calibration
+3. Gain Calibration
 
 Radio receivers initially record data in arbitrary, nonphysical units.
 
-* 
-**Calibration Spikes**: The pipeline identifies artificial noise diode spikes triggered before and after observations.
+    Noise Diode: Uses artificial noise diode spikes located in the receiver to establish a conversion to "calibration units".
 
+Precision: Linear fits are applied to the diode's "on" and "off" data, with outliers rejected using Robust Chauvenet Rejection (RCR).
 
-* 
-**Precision**: Using **Robust Chauvenet Rejection (RCR)**, the system performs linear fits on diode data to calculate a conversion factor into "calibration units".
+Drift Handling: If a significant drift is detected between pre- and post-calibration spikes (determined by a convolved Gaussian z-score > 1.96), a time-dependent interpolation is applied.
 
+4. Flux Calibration (Continuum)
 
-* 
-**Drift Handling**: If a significant drift is detected between pre- and post-calibration spikes (determined by a **z-score threshold** of 1.96), the pipeline applies a time-dependent interpolation to the data.
+Data in calibration units is converted to physical Janskys (Jy) using observations of standard radio sources: Virgo A, Taurus A, and Cygnus A.
 
+    Scheduling: A calibration source is observed every two hours to account for time-dependent diode responses.
 
+Photometry: Sources are automatically photometered using Radio Cartographer (RC) to provide precise measurements.
 
-### Flux Calibration (Continuum)
+Database: Secondary conversion factors are cataloged and interpolated to convert any radio continuum into Jy.
 
-To convert calibration units into physical **Janskys (Jy)**, Skynet observes bright radio sources—**Virgo A, Taurus A, and Cygnus A**—every two hours.
-
-* 
-**Automated Photometry**: These sources are photometered using **Radio Cartographer (RC)** to measure calibration units precisely.
-
-
-* 
-**Final Reduction**: The pipeline interpolates between these secondary conversion factors to provide a science-ready flux calibrated continuum.
-
-
-
-### Spectrum
+5. Spectrum & Observation Modes
 
 The pipeline generates a spectrum by integrating the data cube along the time axis.
 
-* 
-**ON/OFF Support**: For ON/OFF observations, the pipeline subtracts the background sky to remove the receiver's frequency response and recover the true intensity of the source.
+    Tracking: Provides time-dependent flux-calibrated intensities for pulsar timing or intensity measurements.
 
+ON/OFF: Subtracts background sky coordinates to remove the receiver's frequency response and recover true source intensity.
 
-* 
-**Applications**: This provides clean data for measuring **redshifts** or **HI broadening**. While currently returned in arbitrary units for precision frequency work, bandpass calibration methods for the spectrum are in development.
+Mapping: Supports raster and daisy maps, utilizing Radio Cartographer to create images that can be further photometered.
 
+Repository Structure
 
----
+    main.py: The entry point to run the entire pipeline for a provided SDFITS file.
 
-## File Structure
+    file_corruption.py: Testing utility used to manually corrupt files to verify validation effectiveness.
 
-* `main.py`: The entry point to run the entire pipeline from start to end for a provided SDFITS file.
-* 
-`file_corruption.py`: Testing utility used to manually corrupt files (e.g., nonphysical values) to verify validation effectiveness.
+file_merge.py: Utility for data management and testing.
 
+rmac_draft.pdf: Technical proceeding detailing the implemented methods.
 
-* `file_merge.py`: Utility for data management and testing.
-* 
-`radio_cartographer`: Integration with RC for generating radio images and performing photometry.
+Observer Controls
 
+Processed observations provide a flux-calibrated continuum and a non-flux-calibrated spectrum. Observers have the ability to:
 
+    RFI Mitigation: Manually cut Radio Frequency Interference portions; the pipeline then regenerates the continuum and spectrum.
 
-Would you like me to draft a section for the README on how to use the `Observer Controls` for RFI mitigation?
+Atmospheric Science: Opt-out of atmosphere correction if the goal is to study the atmosphere rather than astronomical sources.
