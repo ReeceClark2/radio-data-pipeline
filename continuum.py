@@ -103,20 +103,24 @@ class Continuum:
         diode_on_array = utils.integrate_data(self.header, diode_on, "continuum")
         diode_off_array = utils.integrate_data(self.header, diode_off, "continuum")
 
-        diode_on_best_fit_parameters, diode_on_uncertainties = self.perform_rcr(diode_on_array)
-        diode_off_best_fit_parameters, diode_off_uncertainties = self.perform_rcr(diode_off_array)
-        
-        evaluation_time = (np.average(diode_on_array[0]) + np.average(diode_off_array[0])) / 2
-        diode_on_evaluation_time = evaluation_time - np.average(diode_on_array[0])
-        diode_off_evaluation_time = evaluation_time - np.average(diode_off_array[0])
+        if len(diode_on_array[0]) >= 2 and len(diode_off_array[0]) >= 2:
+            diode_on_best_fit_parameters, diode_on_uncertainties = self.perform_rcr(diode_on_array)
+            diode_off_best_fit_parameters, diode_off_uncertainties = self.perform_rcr(diode_off_array)
+            
+            evaluation_time = (np.average(diode_on_array[0]) + np.average(diode_off_array[0])) / 2
+            diode_on_evaluation_time = evaluation_time - np.average(diode_on_array[0])
+            diode_off_evaluation_time = evaluation_time - np.average(diode_off_array[0])
 
-        diode_on_y = diode_on_evaluation_time * diode_on_best_fit_parameters[1] + diode_on_best_fit_parameters[0]
-        diode_off_y = diode_off_evaluation_time * diode_off_best_fit_parameters[1] + diode_off_best_fit_parameters[0]
+            diode_on_y = diode_on_evaluation_time * diode_on_best_fit_parameters[1] + diode_on_best_fit_parameters[0]
+            diode_off_y = diode_off_evaluation_time * diode_off_best_fit_parameters[1] + diode_off_best_fit_parameters[0]
 
-        calibration_delta = diode_on_y - diode_off_y
-        calibration_uncertainty = np.sqrt(diode_on_uncertainties[0]**2 + diode_off_uncertainties[0]**2 + (diode_on_uncertainties[1] * diode_on_evaluation_time)**2 + (diode_off_uncertainties[1] * diode_off_evaluation_time)**2)
+            calibration_delta = diode_on_y - diode_off_y
+            calibration_uncertainty = np.sqrt(diode_on_uncertainties[0]**2 + diode_off_uncertainties[0]**2 + (diode_on_uncertainties[1] * diode_on_evaluation_time)**2 + (diode_off_uncertainties[1] * diode_off_evaluation_time)**2)
 
-        return calibration_delta, calibration_uncertainty
+            return calibration_delta, calibration_uncertainty
+        else:
+            return None, None
+
 
     def continuum(self):
         if self.including_time_ranges or self.excluding_time_ranges:
@@ -138,9 +142,9 @@ class Continuum:
         pre_calibration_intensity = None
         post_calibration_intensity = None
 
-        if len(pre_calibration) > 2:
+        if len(pre_calibration) > 3:
             pre_calibration_intensity, pre_calibration_uncertainty = self.calculate_calibration_height(pre_calibration)
-        if len(post_calibration) > 2:
+        if len(post_calibration) > 3:
             post_calibration_intensity, post_calibration_uncertainty = self.calculate_calibration_height(post_calibration)
 
         continuum = utils.integrate_data(self.header, self.data[self.data_start_index:self.post_cal_start_index], "continuum")

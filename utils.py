@@ -120,6 +120,7 @@ def find_calibrations(header, data, channel_count):
     # Initialize necessary indices
     data_start_ind = None
     post_cal_start_ind = None
+    off_start_index = None
 
     # Create a counter for valid data
     counter = 0

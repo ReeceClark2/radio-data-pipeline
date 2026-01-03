@@ -18,7 +18,7 @@ if __name__ == "__main__":
 
     start_time = time()
 
-    filepath = "C:/Users/starb/Downloads/0144767.fits"
+    filepath = "C:/Users/starb/Downloads/0144759.fits"
     root, extension = os.path.splitext(filepath)
 
     v = Validation(filepath)
@@ -27,8 +27,8 @@ if __name__ == "__main__":
     time0 = time()
     print("Validation time:", round((time0 - start_time),3), " seconds")
 
-    ac = Atmosphere_Correction(root + "_validated" + extension)
-    ac.atmosphere_correction()
+    # ac = Atmosphere_Correction(root + "_validated" + extension)
+    # ac.atmosphere_correction()
 
     time1 = time()
     print("Atmosphere correction time:", round((time1 - time0),3), " seconds")
