@@ -52,7 +52,6 @@ class Continuum:
 
         return on_mask, off_mask
 
-
     def linear(self, x, params): # model function
         return params[0] + x * params[1]
 
@@ -99,11 +98,12 @@ class Continuum:
 
     def calculate_calibration_height(self, calibration):
         diode_on, diode_off = self.parse_calibration_spike(calibration)
+        
+        # Check that on and off sections are greater than 2 points to perform fitting
+        if len(diode_on) >= 4 and len(diode_off) >= 4:
+            diode_on_array = utils.integrate_data(self.header, diode_on, "continuum")
+            diode_off_array = utils.integrate_data(self.header, diode_off, "continuum")
 
-        diode_on_array = utils.integrate_data(self.header, diode_on, "continuum")
-        diode_off_array = utils.integrate_data(self.header, diode_off, "continuum")
-
-        if len(diode_on_array[0]) >= 2 and len(diode_off_array[0]) >= 2:
             diode_on_best_fit_parameters, diode_on_uncertainties = self.perform_rcr(diode_on_array)
             diode_off_best_fit_parameters, diode_off_uncertainties = self.perform_rcr(diode_off_array)
             
@@ -120,8 +120,7 @@ class Continuum:
             return calibration_delta, calibration_uncertainty
         else:
             return None, None
-
-
+    
     def continuum(self):
         if self.including_time_ranges or self.excluding_time_ranges:
             self.data = utils.filter_time_ranges(self.header, self.data, self.including_time_ranges, self.excluding_time_ranges)
@@ -142,10 +141,8 @@ class Continuum:
         pre_calibration_intensity = None
         post_calibration_intensity = None
 
-        if len(pre_calibration) > 3:
-            pre_calibration_intensity, pre_calibration_uncertainty = self.calculate_calibration_height(pre_calibration)
-        if len(post_calibration) > 3:
-            post_calibration_intensity, post_calibration_uncertainty = self.calculate_calibration_height(post_calibration)
+        pre_calibration_intensity, pre_calibration_uncertainty = self.calculate_calibration_height(pre_calibration)
+        post_calibration_intensity, post_calibration_uncertainty = self.calculate_calibration_height(post_calibration)
 
         continuum = utils.integrate_data(self.header, self.data[self.data_start_index:self.post_cal_start_index], "continuum")
         
