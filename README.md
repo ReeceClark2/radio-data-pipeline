@@ -65,17 +65,12 @@ The pipeline supports multiple observation modes to meet diverse scientific and 
 **Mapping**: Supports raster and daisy maps, utilizing Radio Cartographer to create images that can be photometered to perform radio astronomy.
 
 
----
-
-## Repository Structure
+## Helper Files
 
 * `main.py`: The entry point to run the entire pipeline from start to end for a provided SDFITS file.
-* 
-`file_corruption.py`: Testing utility used to manually corrupt files to verify the effectiveness of the validation pipeline.
-
+* `file_corruption.py`: Testing utility used to manually corrupt files to verify the effectiveness of the validation pipeline.
 * `file_merge.py`: Utility for data management and testing.
 
----
 
 ## Observer Controls
 
