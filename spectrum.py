@@ -46,9 +46,9 @@ class Spectrum:
             frequencies, self.data['DATA'] = utils.filter_frequency_ranges(self.header, self.data, self.ifnum, self.including_frequency_ranges, self.excluding_frequency_ranges)
         else:
             frequencies = utils.get_frequency_range(self.header, self.ifnum)
-            frequencies = np.linspace(frequencies[0], frequencies[1], frequencies[2])
+            frequencies = np.linspace(frequencies[1], frequencies[0], frequencies[2])
 
-        data_start_index, post_cal_start_index, off_start_index = utils.find_calibrations(self.header, self.data, channel_count)
+        data_start_index, post_cal_start_index, off_start_index = utils.find_calibrations(self.header, self.data, self.channel_count)
         self.off_start_index = off_start_index    
 
         if self.off_start_index:

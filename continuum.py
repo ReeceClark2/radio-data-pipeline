@@ -125,7 +125,7 @@ class Continuum:
             frequencies, self.data['DATA'] = utils.filter_frequency_ranges(self.header, self.data, self.ifnum, self.including_frequency_ranges, self.excluding_frequency_ranges)
         else:
             frequencies = utils.get_frequency_range(self.header, self.ifnum)
-            frequencies = np.linspace(frequencies[0], frequencies[1], frequencies[2])
+            frequencies = np.linspace(frequencies[1], frequencies[0], frequencies[2])
 
         data_start_index, post_cal_start_index, off_start_index = utils.find_calibrations(self.header, self.data, self.channel_count)
         self.data_start_index = data_start_index
@@ -146,20 +146,15 @@ class Continuum:
         continuum = utils.integrate_data(self.header, self.data[self.data_start_index:self.post_cal_start_index], "continuum")
         
         if pre_calibration_intensity and post_calibration_intensity:
-            print("precal:", pre_calibration_intensity, pre_calibration_uncertainty)
-            print("postcal:", post_calibration_intensity, post_calibration_uncertainty)
             z_score = abs(pre_calibration_intensity - post_calibration_intensity) / np.sqrt(pre_calibration_uncertainty ** 2 + post_calibration_uncertainty ** 2)
 
             if z_score >= 1.96:
                 pass
             else:
-                print(z_score)
                 continuum[1] /= (pre_calibration_intensity + post_calibration_intensity) / 2
         elif pre_calibration_intensity:
-            print("precal only:", pre_calibration_intensity)
             continuum[1] /= pre_calibration_intensity
         elif post_calibration_intensity:
-            print("postcal only:", post_calibration_intensity)
             continuum[1] /= post_calibration_intensity
 
         return continuum

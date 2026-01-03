@@ -66,7 +66,7 @@ class Atmosphere_Correction:
 
         for i in self.data:
             frequencies = utils.get_frequency_range(self.header, i["IFNUM"])
-            frequencies = np.linspace(frequencies[0] / 1000, frequencies[1] / 1000, frequencies[2])
+            frequencies = np.linspace(frequencies[1] / 1000, frequencies[0] / 1000, frequencies[2])
 
             # Pull relevant parameters
             elevation = i["ELEVATIO"]
